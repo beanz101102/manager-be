@@ -5,9 +5,8 @@ import { User } from "../models/user.entity";
 let userSignatureRepo = dataSource.getRepository(UserSignature);
 
 class UserSignatureService {
-  static async addUserSignature(id, user: User, signatureImagePath) {
+  static async addUserSignature(user: User, signatureImagePath) {
     let userSignature = new UserSignature();
-    userSignature.id = id;
     userSignature.user = user;
     userSignature.signatureImagePath = signatureImagePath;
     await userSignatureRepo.save(userSignature);
@@ -22,16 +21,25 @@ class UserSignatureService {
     await userSignatureRepo.save(userSignature);
   }
   static async listUserSignature() {
-    const userSignature = await userSignatureRepo.find({
-      relations: ["user"],
-    });
-    return userSignature;
+    try {
+      const userSignature = await userSignatureRepo.find({
+        relations: ["user", "user.department"],
+      });
+      return userSignature;
+    } catch (error) {
+      console.error("Error fetching user signatures:", error);
+      throw new Error("Failed to fetch user signatures");
+    }
   }
   static async detail(id) {
     const userSignature = await userSignatureRepo.findOne({
-      relations: ["user"],
+      relations: ["user", "user.department"],
       where: { id: id },
     });
+    return userSignature;
+  }
+  static async delete(id) {
+    const userSignature = await userSignatureRepo.delete(id);
     return userSignature;
   }
 }

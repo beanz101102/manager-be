@@ -100,7 +100,18 @@ class UserController {
   }
   async getListUser(req, res) {
     try {
-      const user = await UserServices.getListUser();
+      const role = req.query.role;
+      const page = req.query.page;
+      const limit = req.query.limit;
+      const text = req.query.text;
+      const departmentId = req.query.departmentId;
+      const user = await UserServices.getListUser(
+        role,
+        text,
+        departmentId,
+        page,
+        limit
+      );
       res.status(200).json(user);
     } catch (e) {
       res.status(404).json({ message: e.message });
@@ -147,7 +158,10 @@ class UserController {
     try {
       let userId = req.body.id;
       const user = await UserServices.deleteUser(userId);
-      res.status("delete success").json(user);
+      res.status(200).json({
+        success: true,
+        message: "Delete user successfully",
+      });
     } catch (e) {
       res.status(404).json({ message: e.message });
     }

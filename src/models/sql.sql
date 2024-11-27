@@ -46,6 +46,7 @@ CREATE TABLE contract (
     signersCount INT NOT NULL,
     status ENUM('new', 'pending', 'signed', 'rejected') DEFAULT 'new',
     note TEXT,
+    pdfFilePath VARCHAR(255),
     FOREIGN KEY (customerId) REFERENCES user(id),
     FOREIGN KEY (createdById) REFERENCES user(id)
 );

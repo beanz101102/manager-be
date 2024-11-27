@@ -4,6 +4,8 @@ import { User } from "../models/user.entity";
 import { ApprovalFlow } from "../models/approval_flow.entity";
 import { ContractSignature } from "../models/contract_signature.entity";
 import { Contract } from "../models/contract.entity";
+const path = require("path");
+
 let approvalFlowRepo = dataSource.getRepository(ApprovalFlow);
 let contractSignatureRepo = dataSource.getRepository(ContractSignature);
 let contractRepo = dataSource.getRepository(Contract);
@@ -13,15 +15,26 @@ class contractController {
   async createContract(req, res) {
     try {
       let {
-        id,
         contractNumber,
         customer,
         contractType,
         signersCount,
         status,
         note,
+        createdBy,
       } = req.body;
-      let createdBy = req.user.id;
+
+      if (!contractNumber) {
+        return res.status(400).json({
+          message: "Contract number is required",
+          data: req.body,
+        });
+      }
+
+      // Lấy đường dẫn tệp PDF
+      const pdfFilePath = req.file
+        ? `/uploads/${path.basename(req.file.path).substring(0, 255)}`
+        : null;
 
       // Validate customer
       const customerUser = await userRepo.findOne({
@@ -36,18 +49,18 @@ class contractController {
       }
 
       let contract = await contractService.addContract(
-        id,
         contractNumber,
         customer,
         contractType,
         createdBy,
         signersCount,
         status,
-        note
+        note,
+        pdfFilePath
       );
-      res.status(200).json(contract);
+      return res.status(200).json(contract);
     } catch (e) {
-      res.status(404).json({ message: e.message });
+      return res.status(500).json({ message: e.message });
     }
   }
   async updateContract(req, res) {
@@ -81,7 +94,12 @@ class contractController {
 
   async allContract(req, res) {
     try {
-      const contracts = await contractService.allContracts();
+      const { contractNumber, page, limit } = req.query;
+      const contracts = await contractService.allContracts(
+        contractNumber,
+        page,
+        limit
+      );
       res.status(200).json(contracts);
     } catch (e) {
       res.status(404).json({ message: e.message });

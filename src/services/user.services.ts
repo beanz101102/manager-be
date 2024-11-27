@@ -99,15 +99,48 @@ class UserServices {
     return user;
   }
 
-  static async getListUser() {
+  static async getListUser(
+    role: string,
+    text?: string,
+    departmentId?: number,
+    page: number = 1,
+    limit: number = 10
+  ) {
+    const skip = (page - 1) * limit;
+
+    let whereConditions: any = { role };
+
+    if (departmentId) {
+      whereConditions.department = { id: departmentId };
+    }
+    if (text) {
+      whereConditions = [
+        { fullName: Like(`%${text}%`), role },
+        { code: Like(`%${text}%`), role },
+      ];
+    }
+
     let listUser = await userRepo.find({
       relations: ["department"],
+      where: whereConditions,
+      skip: skip,
+      take: limit,
     });
-    return listUser;
+
+    const total = await userRepo.count({
+      where: whereConditions,
+    });
+
+    return {
+      users: listUser,
+      total: total,
+      page: page,
+      lastPage: Math.ceil(total / limit),
+    };
   }
-  static async deleteUser(id: any) {
-    let user = await userRepo.delete({ id: id });
-    return user;
+  static async deleteUser(ids: number[]) {
+    const result = await userRepo.delete(ids);
+    return result;
   }
 }
 
