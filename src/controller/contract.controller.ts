@@ -443,6 +443,44 @@ class contractController {
       return res.status(500).json({ message: e.message });
     }
   }
+  async cancelContracts(req, res) {
+    try {
+      const { contractIds, reason, userId } = req.body;
+
+      // Validate input
+      if (!Array.isArray(contractIds) || contractIds.length === 0) {
+        return res.status(400).json({
+          message: "Please provide an array of contract IDs to cancel",
+        });
+      }
+
+      // Validate reason
+      if (!reason || reason.trim().length < 10) {
+        return res.status(400).json({
+          message:
+            "Please provide a valid cancellation reason (minimum 10 characters)",
+        });
+      }
+
+      if (reason.trim().length > 500) {
+        return res.status(400).json({
+          message: "Cancellation reason is too long (maximum 500 characters)",
+        });
+      }
+
+      const result = await contractService.cancelContracts(
+        contractIds,
+        userId,
+        reason.trim()
+      );
+
+      return res.status(200).json(result);
+    } catch (e) {
+      return res.status(500).json({
+        message: e.message,
+      });
+    }
+  }
 }
 
 export default contractController;

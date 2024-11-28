@@ -47,5 +47,6 @@ ContractRouter.post("/count", contractController.countContractsByStatus);
 ContractRouter.post("/approve", contractController.approveMultipleContracts);
 ContractRouter.post("/sign", contractController.signContract);
 ContractRouter.post("/submit", contractController.submitForApproval);
+ContractRouter.post("/cancel", contractController.cancelContracts);
 
 export default ContractRouter;

@@ -160,10 +160,63 @@ class contractService {
 
   static async getDetail(id: any) {
     let contract = await contractRepo.findOne({
-      relations: ["customer", "createdBy"],
       where: { id: id },
+      relations: [
+        "customer",
+        "createdBy",
+        "approvalTemplate",
+        "contractApprovals",
+        "contractApprovals.approver.department",
+        "contractApprovals.templateStep",
+        "contractSigners",
+        "contractSigners.signer.department",
+      ],
     });
-    return contract;
+
+    if (!contract) {
+      throw new Error("Contract not found");
+    }
+
+    // Format the response to include approval and signing information
+    const formattedContract = {
+      ...contract,
+      approvals: contract.contractApprovals
+        ?.map((approval) => ({
+          approver: {
+            id: approval.approver.id,
+            name: approval.approver.fullName,
+            email: approval.approver.email,
+            role: approval.approver.role,
+            department: approval.approver.department,
+          },
+          status: approval.status,
+          comments: approval.comments,
+          approvedAt: approval.approvedAt,
+          stepOrder: approval.templateStep.stepOrder,
+        }))
+        .sort((a, b) => a.stepOrder - b.stepOrder),
+
+      signers: contract.contractSigners
+        ?.map((signer) => ({
+          signer: {
+            id: signer.signer.id,
+            name: signer.signer.fullName,
+            email: signer.signer.email,
+            role: signer.signer.role,
+            department: signer.signer.department,
+          },
+          status: signer.status,
+          signOrder: signer.signOrder,
+          signedAt: signer.signedAt,
+        }))
+        .sort((a, b) => a.signOrder - b.signOrder),
+    };
+
+    // Remove the raw relations from the response
+    delete formattedContract.contractApprovals;
+    delete formattedContract.contractSigners;
+
+    return formattedContract;
   }
 
   static async approveContract(
@@ -529,6 +582,78 @@ class contractService {
           failedContracts: results.failed,
           totalProcessed: contracts.length,
           status,
+        },
+      };
+    });
+  }
+
+  static async cancelContracts(
+    contractIds: number[],
+    userId: number,
+    reason: string
+  ) {
+    return await dataSource.transaction(async (transactionalEntityManager) => {
+      // Get all contracts to cancel
+      const contracts = await contractRepo.find({
+        where: { id: In(contractIds) },
+        relations: ["createdBy"],
+      });
+
+      if (contracts.length === 0) {
+        throw new Error("No contracts found");
+      }
+
+      const results = {
+        success: [],
+        failed: [],
+      };
+
+      for (const contract of contracts) {
+        try {
+          // Check if contract can be cancelled
+          if (
+            contract.status === "completed" ||
+            contract.status === "cancelled"
+          ) {
+            throw new Error(
+              `Contract ${contract.contractNumber} cannot be cancelled in its current status`
+            );
+          }
+
+          // Only allow creator to cancel
+          if (contract.createdBy.id !== userId) {
+            throw new Error(
+              `Unauthorized to cancel contract ${contract.contractNumber}`
+            );
+          }
+
+          // Update contract status and reason
+          contract.status = "cancelled";
+          contract.cancelReason = reason;
+          await transactionalEntityManager.save(Contract, contract);
+
+          results.success.push({
+            contractId: contract.id,
+            contractNumber: contract.contractNumber,
+            message: "Successfully cancelled",
+            cancelReason: reason,
+          });
+        } catch (error) {
+          results.failed.push({
+            contractId: contract.id,
+            contractNumber: contract.contractNumber,
+            error: error.message,
+          });
+        }
+      }
+
+      return {
+        success: true,
+        message: `Successfully cancelled ${results.success.length} contracts, ${results.failed.length} failed`,
+        data: {
+          successfulContracts: results.success,
+          failedContracts: results.failed,
+          totalProcessed: contracts.length,
         },
       };
     });

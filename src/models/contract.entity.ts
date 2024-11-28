@@ -64,6 +64,7 @@ export class Contract {
       "rejected",
       "ready_to_sign",
       "completed",
+      "cancelled",
     ],
     default: "draft",
   })
@@ -86,6 +87,10 @@ export class Contract {
 
   @OneToMany(() => ContractSigner, (signer) => signer.contract)
   contractSigners: ContractSigner[];
+
+  // Chỉ thêm trường lý do hủy
+  @Column({ type: "text", nullable: true })
+  cancelReason: string;
 }
 
 // Thêm entity mới cho người ký
