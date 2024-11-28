@@ -14,51 +14,60 @@ let userRepo = dataSource.getRepository(User);
 class contractController {
   async createContract(req, res) {
     try {
-      let {
+      const {
         contractNumber,
-        customer,
+        customerId,
         contractType,
-        signersCount,
-        status,
+        approvalTemplateId,
+        createdById,
+        signers,
         note,
-        createdBy,
       } = req.body;
 
-      if (!contractNumber) {
+      if (
+        !contractNumber ||
+        !customerId ||
+        !approvalTemplateId ||
+        !createdById ||
+        !signers?.length
+      ) {
         return res.status(400).json({
-          message: "Contract number is required",
-          data: req.body,
+          message: "Missing required fields",
+          required: [
+            "contractNumber",
+            "customerId",
+            "approvalTemplateId",
+            "createdById",
+            "signers",
+          ],
         });
       }
 
-      // Lấy đường dẫn tệp PDF
       const pdfFilePath = req.file
-        ? `/uploads/${path.basename(req.file.path).substring(0, 255)}`
+        ? `/uploads/${path.basename(req.file.path)}`
         : null;
 
-      // Validate customer
-      const customerUser = await userRepo.findOne({
-        where: { id: customer, role: "customer" },
-      });
-
-      if (!customerUser) {
+      if (!pdfFilePath) {
         return res.status(400).json({
-          message:
-            "Invalid customer ID. User must exist and have 'customer' role",
+          message: "Contract file is required",
         });
       }
 
-      let contract = await contractService.addContract(
+      const contract = await contractService.addContract(
         contractNumber,
-        customer,
+        customerId,
         contractType,
-        createdBy,
-        signersCount,
-        status,
+        approvalTemplateId,
+        createdById,
+        JSON.parse(signers),
         note,
         pdfFilePath
       );
-      return res.status(200).json(contract);
+
+      return res.status(200).json({
+        message: "Contract created successfully",
+        data: contract,
+      });
     } catch (e) {
       return res.status(500).json({ message: e.message });
     }
@@ -94,12 +103,24 @@ class contractController {
 
   async allContract(req, res) {
     try {
-      const { contractNumber, page, limit } = req.query;
+      const {
+        contractNumber,
+        status,
+        createdById,
+        customerId,
+        page = 1,
+        limit = 10,
+      } = req.query;
+
       const contracts = await contractService.allContracts(
         contractNumber,
-        page,
-        limit
+        status,
+        createdById ? parseInt(createdById as string) : undefined,
+        customerId ? parseInt(customerId as string) : undefined,
+        parseInt(page as string),
+        parseInt(limit as string)
       );
+
       res.status(200).json(contracts);
     } catch (e) {
       res.status(404).json({ message: e.message });
@@ -285,6 +306,141 @@ class contractController {
       return res.status(500).json({
         message: e.message,
       });
+    }
+  }
+
+  async signContract(req, res) {
+    try {
+      const { contracts, signerId } = req.body;
+
+      if (!Array.isArray(contracts) || contracts.length === 0 || !signerId) {
+        return res.status(400).json({
+          message: "Missing required fields",
+          required: [
+            {
+              contracts: "array of contract IDs",
+              signerId: "number",
+            },
+          ],
+        });
+      }
+
+      // Kiểm tra xem signer có tồn tại không
+      const signer = await userRepo.findOneBy({ id: signerId });
+      if (!signer) {
+        return res.status(404).json({
+          message: "Signer not found",
+        });
+      }
+
+      const results = {
+        success: [],
+        failed: [],
+      };
+
+      for (const contractId of contracts) {
+        try {
+          const result = await contractService.signContract(
+            contractId,
+            signerId
+          );
+          results.success.push({
+            contractId,
+            message: result.message,
+          });
+        } catch (error) {
+          results.failed.push({
+            contractId,
+            error: error.message,
+          });
+        }
+      }
+
+      return res.status(200).json({
+        success: true,
+        message: `Successfully signed ${results.success.length} contracts, ${results.failed.length} failed`,
+        data: {
+          successfulContracts: results.success,
+          failedContracts: results.failed,
+          totalProcessed: contracts.length,
+        },
+      });
+    } catch (e) {
+      return res.status(500).json({
+        success: false,
+        message: e.message,
+      });
+    }
+  }
+  async submitForApproval(req, res) {
+    try {
+      const { contractIds, userId } = req.body;
+
+      // Kiểm tra đầu vào
+      if (!Array.isArray(contractIds) || contractIds.length === 0) {
+        return res.status(400).json({
+          message: "Please provide an array of contract IDs to submit",
+        });
+      }
+
+      if (!userId) {
+        return res.status(400).json({
+          message: "User ID is required",
+        });
+      }
+
+      const result = await contractService.submitMultipleForApproval(
+        contractIds,
+        userId
+      );
+      return res.status(200).json(result);
+    } catch (e) {
+      return res.status(500).json({ message: e.message });
+    }
+  }
+  async approveMultipleContracts(req, res) {
+    try {
+      const { contracts, status, approverId } = req.body;
+
+      // Validate main inputs
+      if (!status || !approverId) {
+        return res.status(400).json({
+          message: "Missing required fields",
+          required: ["status", "approverId"],
+        });
+      }
+
+      // Validate contracts array
+      if (!Array.isArray(contracts) || contracts.length === 0) {
+        return res.status(400).json({
+          message: "Please provide an array of contracts",
+          required: [
+            {
+              contractId: "number",
+              comments: "string (optional)",
+            },
+          ],
+        });
+      }
+
+      // Validate each contract object
+      for (const contract of contracts) {
+        if (!contract.contractId) {
+          return res.status(400).json({
+            message: "Missing contractId in one or more contracts",
+          });
+        }
+      }
+
+      const result = await contractService.approveMultipleContracts(
+        contracts,
+        status,
+        approverId
+      );
+
+      return res.status(200).json(result);
+    } catch (e) {
+      return res.status(500).json({ message: e.message });
     }
   }
 }

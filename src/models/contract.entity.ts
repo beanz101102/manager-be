@@ -5,8 +5,11 @@ import {
   ManyToOne,
   CreateDateColumn,
   UpdateDateColumn,
+  OneToMany,
 } from "typeorm";
 import { User } from "./user.entity";
+import { ApprovalTemplate } from "./approval_template.entity";
+import { ContractApproval } from "./contract_approval.entity";
 
 // Đánh dấu class này là một Entity (bảng trong database)
 @Entity()
@@ -28,6 +31,10 @@ export class Contract {
   @Column({ length: 100, nullable: true })
   contractType: string;
 
+  // Thêm quan hệ với ApprovalTemplate
+  @ManyToOne(() => ApprovalTemplate, { nullable: false })
+  approvalTemplate: ApprovalTemplate;
+
   // Quan hệ nhiều-một với bảng User (người tạo hợp đồng)
   // nullable: false -> bắt buộc phải có người tạo
   @ManyToOne(() => User, { nullable: false })
@@ -41,16 +48,24 @@ export class Contract {
   @Column({ type: "timestamp", nullable: true })
   deletedAt: Date;
 
-  // Số lượng người ký hợp đồng
-  @Column()
-  signersCount: number;
+  // Danh sách người ký
+  @OneToMany(() => ContractSigner, (signer) => signer.contract, {
+    cascade: true,
+  })
+  signers: ContractSigner[];
 
   // Trạng thái hợp đồng: new/pending/signed/rejected
   // Mặc định là 'new' khi tạo mới
   @Column({
     type: "enum",
-    enum: ["new", "pending", "signed", "rejected"],
-    default: "new",
+    enum: [
+      "draft",
+      "pending_approval",
+      "rejected",
+      "ready_to_sign",
+      "completed",
+    ],
+    default: "draft",
   })
   status: string;
 
@@ -61,4 +76,42 @@ export class Contract {
   // Đường dẫn tệp PDF, độ dài tối đa 255 ký tự, có thể null
   @Column({ length: 255, nullable: true })
   pdfFilePath: string;
+
+  // Add UpdateDateColumn
+  @UpdateDateColumn()
+  updatedAt: Date;
+
+  @OneToMany(() => ContractApproval, (approval) => approval.contract)
+  contractApprovals: ContractApproval[];
+
+  @OneToMany(() => ContractSigner, (signer) => signer.contract)
+  contractSigners: ContractSigner[];
+}
+
+// Thêm entity mới cho người ký
+@Entity()
+export class ContractSigner {
+  @PrimaryGeneratedColumn()
+  id: number;
+
+  @ManyToOne(() => Contract, (contract) => contract.signers, {
+    onDelete: "CASCADE",
+  })
+  contract: Contract;
+
+  @ManyToOne(() => User)
+  signer: User;
+
+  @Column({
+    type: "enum",
+    enum: ["pending", "signed"],
+    default: "pending",
+  })
+  status: string;
+
+  @Column()
+  signOrder: number;
+
+  @Column({ type: "timestamp", nullable: true })
+  signedAt: Date;
 }
