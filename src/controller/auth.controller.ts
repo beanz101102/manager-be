@@ -43,6 +43,7 @@ class AuthController {
       let user = await userRepo.findOne({
         where: { email },
       });
+
       if (!user || !(await bcrypt.compare(passwordHash, user.passwordHash))) {
         return next(createError(401, "Wrong email or password"));
       }

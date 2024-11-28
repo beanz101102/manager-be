@@ -67,6 +67,7 @@ CREATE TABLE contract (
     createdById INT NOT NULL,
     createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     deletedAt TIMESTAMP NULL,
+    updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     status ENUM('draft', 'pending_approval', 'rejected', 'ready_to_sign', 'completed') DEFAULT 'draft',
     note TEXT,
     pdfFilePath VARCHAR(255) NOT NULL,

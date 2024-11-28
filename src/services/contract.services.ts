@@ -100,37 +100,40 @@ class contractService {
         "contractSigners",
         "contractSigners.signer",
       ],
-      where: {},
+      where: [],
       skip: skip,
       take: limit,
     };
 
+    if (createdById) {
+      query.where = [
+        { createdBy: { id: createdById } },
+        { contractApprovals: { approver: { id: createdById } } },
+        { contractSigners: { signer: { id: createdById } } },
+      ];
+    } else {
+      query.where = [{}];
+    }
+
     if (contractNumber) {
-      query.where = {
-        ...query.where,
+      query.where = query.where.map((condition) => ({
+        ...condition,
         contractNumber: Like(`%${contractNumber}%`),
-      };
+      }));
     }
 
     if (status) {
-      query.where = {
-        ...query.where,
+      query.where = query.where.map((condition) => ({
+        ...condition,
         status: status,
-      };
-    }
-
-    if (createdById) {
-      query.where = {
-        ...query.where,
-        createdBy: { id: createdById },
-      };
+      }));
     }
 
     if (customerId) {
-      query.where = {
-        ...query.where,
+      query.where = query.where.map((condition) => ({
+        ...condition,
         customer: { id: customerId },
-      };
+      }));
     }
 
     let [contracts, total] = await contractRepo.findAndCount(query);
