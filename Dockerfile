@@ -1,6 +1,6 @@
 # Dockerfile
 # Sử dụng Node.js làm base image
-FROM node:18
+FROM node:18-alpine
 
 # Thiết lập thư mục làm việc
 WORKDIR /usr/src/app
@@ -22,4 +22,4 @@ RUN npm run build
 EXPOSE 8000
 
 # Lệnh để chạy ứng dụng
-CMD ["npm", "start"]
+CMD ["npm", "run", "dev"]
