@@ -311,60 +311,25 @@ class contractController {
 
   async signContract(req, res) {
     try {
-      const { contracts, signerId } = req.body;
+      const { contractId, signerId } = req.body;
 
-      if (!Array.isArray(contracts) || contracts.length === 0 || !signerId) {
+      if (!contractId || !signerId || !req.file) {
         return res.status(400).json({
           message: "Missing required fields",
-          required: [
-            {
-              contracts: "array of contract IDs",
-              signerId: "number",
-            },
-          ],
+          required: ["contractId", "signerId", "PDF file"],
         });
       }
 
-      // Kiểm tra xem signer có tồn tại không
-      const signer = await userRepo.findOneBy({ id: signerId });
-      if (!signer) {
-        return res.status(404).json({
-          message: "Signer not found",
-        });
-      }
+      // Get the PDF file path from the uploaded file
+      const pdfFilePath = `/uploads/${path.basename(req.file.path)}`;
 
-      const results = {
-        success: [],
-        failed: [],
-      };
+      const result = await contractService.signContract(
+        contractId,
+        signerId,
+        pdfFilePath
+      );
 
-      for (const contractId of contracts) {
-        try {
-          const result = await contractService.signContract(
-            contractId,
-            signerId
-          );
-          results.success.push({
-            contractId,
-            message: result.message,
-          });
-        } catch (error) {
-          results.failed.push({
-            contractId,
-            error: error.message,
-          });
-        }
-      }
-
-      return res.status(200).json({
-        success: true,
-        message: `Successfully signed ${results.success.length} contracts, ${results.failed.length} failed`,
-        data: {
-          successfulContracts: results.success,
-          failedContracts: results.failed,
-          totalProcessed: contracts.length,
-        },
-      });
+      return res.status(200).json(result);
     } catch (e) {
       return res.status(500).json({
         success: false,

@@ -69,7 +69,7 @@ export class User {
   // Vai trò người dùng: admin/employee/customer, mặc định là employee
   @Column({
     type: "enum",
-    enum: ["admin", "employee", "customer"],
+    enum: ["admin", "employee", "customer", "manager"],
     default: "employee",
   })
   role: string;

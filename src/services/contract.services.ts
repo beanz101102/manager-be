@@ -177,24 +177,38 @@ class contractService {
       throw new Error("Contract not found");
     }
 
+    // Get all expected approvers from the template steps
+    const templateSteps = await dataSource
+      .getRepository(ApprovalTemplateStep)
+      .find({
+        where: { templateId: contract.approvalTemplate.id },
+        relations: ["approver", "approver.department"],
+        order: { stepOrder: "ASC" },
+      });
+
     // Format the response to include approval and signing information
     const formattedContract = {
       ...contract,
-      approvals: contract.contractApprovals
-        ?.map((approval) => ({
+      approvals: templateSteps.map((step) => {
+        // Find matching approval if it exists
+        const existingApproval = contract.contractApprovals?.find(
+          (approval) => approval.templateStep.stepOrder === step.stepOrder
+        );
+
+        return {
           approver: {
-            id: approval.approver.id,
-            name: approval.approver.fullName,
-            email: approval.approver.email,
-            role: approval.approver.role,
-            department: approval.approver.department,
+            id: step.approver.id,
+            name: step.approver.fullName,
+            email: step.approver.email,
+            role: step.approver.role,
+            department: step.approver.department,
           },
-          status: approval.status,
-          comments: approval.comments,
-          approvedAt: approval.approvedAt,
-          stepOrder: approval.templateStep.stepOrder,
-        }))
-        .sort((a, b) => a.stepOrder - b.stepOrder),
+          status: existingApproval?.status || "pending",
+          comments: existingApproval?.comments || null,
+          approvedAt: existingApproval?.approvedAt || null,
+          stepOrder: step.stepOrder,
+        };
+      }),
 
       signers: contract.contractSigners
         ?.map((signer) => ({
@@ -360,7 +374,11 @@ class contractService {
     });
   }
 
-  static async signContract(contractId: number, signerId: number) {
+  static async signContract(
+    contractId: number,
+    signerId: number,
+    pdfFilePath: string
+  ) {
     return await dataSource.transaction(async (transactionalEntityManager) => {
       // 1. Kiểm tra hợp đồng và người ký
       const contractSigner = await transactionalEntityManager.findOne(
@@ -399,12 +417,16 @@ class contractService {
         throw new Error("Previous signers must sign first");
       }
 
-      // 4. Cập nhật trạng thái ký
+      // 4. Cập nhật trạng thái ký và PDF file path
       contractSigner.status = "signed";
       contractSigner.signedAt = new Date();
       await transactionalEntityManager.save(ContractSigner, contractSigner);
 
-      // 5. Kiểm tra nếu tất cả đã ký - sử dụng transactionalEntityManager
+      // Update contract's PDF file path
+      contractSigner.contract.pdfFilePath = pdfFilePath;
+      await transactionalEntityManager.save(Contract, contractSigner.contract);
+
+      // 5. Kiểm tra nếu tất cả đã ký
       const [totalSigners, signedSigners] = await Promise.all([
         transactionalEntityManager.count(ContractSigner, {
           where: { contract: { id: contractId } },
@@ -417,11 +439,7 @@ class contractService {
         }),
       ]);
 
-      console.log("Total signers:", totalSigners);
-      console.log("Signed signers:", signedSigners);
-
       if (signedSigners === totalSigners) {
-        // Tất cả đã ký xong
         contractSigner.contract.status = "completed";
         await transactionalEntityManager.save(
           Contract,
@@ -441,6 +459,7 @@ class contractService {
           totalSigners,
           signedSigners,
           remainingSigners: totalSigners - signedSigners,
+          pdfFilePath,
         },
       };
     });

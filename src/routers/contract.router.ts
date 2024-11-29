@@ -45,7 +45,11 @@ ContractRouter.post(
 ContractRouter.get("/search", contractController.searchContracts);
 ContractRouter.post("/count", contractController.countContractsByStatus);
 ContractRouter.post("/approve", contractController.approveMultipleContracts);
-ContractRouter.post("/sign", contractController.signContract);
+ContractRouter.post(
+  "/sign",
+  upload.single("file"),
+  contractController.signContract
+);
 ContractRouter.post("/submit", contractController.submitForApproval);
 ContractRouter.post("/cancel", contractController.cancelContracts);
 
