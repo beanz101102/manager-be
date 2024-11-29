@@ -677,6 +677,63 @@ class contractService {
       };
     });
   }
+
+  static async getContractStatistics() {
+    const stats = await contractRepo
+      .createQueryBuilder("contract")
+      .select("contract.status", "status")
+      .addSelect("COUNT(contract.id)", "count")
+      .groupBy("contract.status")
+      .getRawMany();
+
+    // Khởi tạo object kết quả với giá trị mặc định là 0
+    const result = {
+      draft: 0, // Hợp đồng đã soạn
+      pending_approval: 0, // Hợp đồng chờ duyệt
+      ready_to_sign: 0, // Hợp đồng chờ ký
+      cancelled: 0, // Hợp đồng bị hủy
+      completed: 0, // Hợp đồng đã hoàn thành
+      rejected: 0, // Hợp đồng bị từ chối
+    };
+
+    // Cập nhật số lượng từ kết quả query
+    stats.forEach((item) => {
+      result[item.status] = parseInt(item.count);
+    });
+
+    // Tính tổng số hợp đồng
+    const total = Object.values(result).reduce((sum, count) => sum + count, 0);
+
+    return {
+      total,
+      details: {
+        draft: {
+          count: result.draft,
+          percentage: ((result.draft / total) * 100).toFixed(1),
+        },
+        pending_approval: {
+          count: result.pending_approval,
+          percentage: ((result.pending_approval / total) * 100).toFixed(1),
+        },
+        ready_to_sign: {
+          count: result.ready_to_sign,
+          percentage: ((result.ready_to_sign / total) * 100).toFixed(1),
+        },
+        cancelled: {
+          count: result.cancelled,
+          percentage: ((result.cancelled / total) * 100).toFixed(1),
+        },
+        completed: {
+          count: result.completed,
+          percentage: ((result.completed / total) * 100).toFixed(1),
+        },
+        rejected: {
+          count: result.rejected,
+          percentage: ((result.rejected / total) * 100).toFixed(1),
+        },
+      },
+    };
+  }
 }
 
 export default contractService;

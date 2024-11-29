@@ -446,6 +446,16 @@ class contractController {
       });
     }
   }
+  async getContractStatistics(req, res) {
+    try {
+      const stats = await contractService.getContractStatistics();
+      return res.status(200).json(stats);
+    } catch (e) {
+      return res.status(500).json({
+        message: e.message,
+      });
+    }
+  }
 }
 
 export default contractController;
