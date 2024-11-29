@@ -35,11 +35,29 @@ class App {
         this.app.use(express.static(path.join(__dirname, 'FileName'), { maxAge:  this.appConfig.expiredStaticFiles}));
     } */
   private setupMiddlewares(): void {
-    // this.app.use(
-    //   fileUpload({
-    //     createParentPath: true,
-    //   })
-    // );
+    // Add headers before the CORS middleware
+    this.app.use((req, res, next) => {
+      res.header("Access-Control-Allow-Origin", "http://localhost:3000");
+      res.header("Access-Control-Allow-Credentials", "true");
+      res.header(
+        "Access-Control-Allow-Methods",
+        "GET,HEAD,PUT,PATCH,POST,DELETE"
+      );
+      res.header(
+        "Access-Control-Allow-Headers",
+        "Origin, X-Requested-With, Content-Type, Accept, Authorization"
+      );
+      // Handle preflight requests
+      if (req.method === "OPTIONS") {
+        res.header(
+          "Access-Control-Allow-Methods",
+          "GET,HEAD,PUT,PATCH,POST,DELETE"
+        );
+        return res.status(200).json({});
+      }
+      next();
+    });
+
     this.app.use(express.json());
     this.app.use(express.urlencoded({ extended: true }));
     this.app.use(
@@ -47,13 +65,27 @@ class App {
         name: "session",
         keys: [this.appConfig.sessionKey],
         maxAge: this.appConfig.sessionMaxAge,
+        secure: false, // Set to true in production with HTTPS
+        sameSite: "lax",
       })
     );
+
+    // Updated CORS configuration
     this.app.use(
       cors({
+        origin: ["http://localhost:3000", "http://localhost:5173"],
         credentials: true,
-        origin: this.appConfig.host,
-        methods: ["POST", "PUT", "PATCH", "GET", "OPTIONS", "HEAD", "DELETE"],
+        methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+        allowedHeaders: [
+          "Content-Type",
+          "Authorization",
+          "X-Requested-With",
+          "Origin",
+          "Accept",
+        ],
+        exposedHeaders: ["Content-Range", "X-Content-Range"],
+        preflightContinue: false,
+        optionsSuccessStatus: 204,
       })
     );
 
