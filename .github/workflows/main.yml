@@ -51,6 +51,9 @@ jobs:
             git fetch origin staging && \
             git reset --hard origin/staging && \
             
+            # Make init-letsencrypt.sh executable
+            chmod +x init-letsencrypt.sh && \
+            
             # Restore certbot backup
             if [ -d certbot_backup ]; then \
               rm -rf certbot && \
