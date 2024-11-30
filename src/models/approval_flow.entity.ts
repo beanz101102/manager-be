@@ -1,6 +1,13 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, CreateDateColumn } from 'typeorm';
-import { Contract } from './contract.entity';
-import { User } from './user.entity';
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  ManyToOne,
+  CreateDateColumn,
+  JoinColumn,
+} from "typeorm";
+import { Contract } from "./contract.entity";
+import { User } from "./user.entity";
 
 @Entity()
 export class ApprovalFlow {
@@ -8,26 +15,32 @@ export class ApprovalFlow {
   id: number;
 
   @ManyToOne(() => Contract, { nullable: false })
+  @JoinColumn({ name: "contractId" })
   contract: Contract;
 
   @Column()
   stepNumber: number;
 
   @ManyToOne(() => User, { nullable: false })
+  @JoinColumn({ name: "approverId" })
   approver: User;
 
   @Column({ length: 255 })
   action: string;
 
-  @Column({ type: 'enum', enum: ['internal', 'customer'] })
+  @Column({ type: "enum", enum: ["internal", "customer"] })
   actionSource: string;
 
-  @Column({ type: 'enum', enum: ['pending', 'approved', 'rejected'], default: 'pending' })
+  @Column({
+    type: "enum",
+    enum: ["pending", "approved", "rejected"],
+    default: "pending",
+  })
   approvalStatus: string;
 
   @CreateDateColumn()
   approvalDate: Date;
 
-  @Column({ type: 'text', nullable: true })
+  @Column({ type: "text", nullable: true })
   comments: string;
 }

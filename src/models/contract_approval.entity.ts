@@ -16,26 +16,24 @@ export class ContractApproval {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column()
-  contractId: number;
-
-  @ManyToOne(() => Contract, (contract) => contract.contractApprovals)
+  @ManyToOne(() => Contract, (contract) => contract.contractApprovals, {
+    nullable: false,
+    onDelete: "CASCADE",
+  })
   @JoinColumn({ name: "contractId" })
   contract: Contract;
 
-  @Column()
-  templateStepId: number;
-
-  @ManyToOne(() => ApprovalTemplateStep)
-  @JoinColumn({ name: "templateStepId" })
-  templateStep: ApprovalTemplateStep;
-
-  @Column()
-  approverId: number;
-
-  @ManyToOne(() => User)
+  @ManyToOne(() => User, {
+    nullable: false,
+  })
   @JoinColumn({ name: "approverId" })
   approver: User;
+
+  @ManyToOne(() => ApprovalTemplateStep, {
+    nullable: false,
+  })
+  @JoinColumn({ name: "templateStepId" })
+  templateStep: ApprovalTemplateStep;
 
   @Column({
     type: "enum",
