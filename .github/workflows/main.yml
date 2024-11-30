@@ -41,8 +41,23 @@ jobs:
             (git fetch origin staging || git fetch --all) && \
             (git checkout staging || git checkout -b staging origin/staging)"
 
+          # Backup certbot directory
+          ssh_exec "cd $DEPLOY_PATH && \
+            if [ -d certbot ]; then \
+              cp -r certbot certbot_backup; \
+            fi"
+
           # Continue with deployment
           ssh_exec "cd $DEPLOY_PATH && git pull origin staging"
+
+          # Restore certbot directory
+          ssh_exec "cd $DEPLOY_PATH && \
+            if [ -d certbot_backup ]; then \
+              rm -rf certbot && \
+              mv certbot_backup certbot; \
+            fi"
+
+          # Restart containers
           ssh_exec "cd $DEPLOY_PATH && \
             docker-compose down && \
             docker-compose build --no-cache && \
