@@ -17,7 +17,7 @@ jobs:
 
       - name: Install sshpass
         run: sudo apt-get install -y sshpass
-          
+
       - name: Deploy to VPS
         env:
           DEPLOY_PATH: "/root/projects/manager-be"
@@ -25,17 +25,26 @@ jobs:
           VPS_USERNAME: ${{ secrets.VPS_USERNAME }}
           VPS_PASSWORD: ${{ secrets.VPS_PASSWORD }}
         run: |
-          # Export SSHPASS
           export SSHPASS=$VPS_PASSWORD
+          SSH_OPTS="-o StrictHostKeyChecking=no -o ConnectTimeout=30"
 
-          # 0. Checkout to staging branch
-          sshpass -e ssh -o StrictHostKeyChecking=no $VPS_USERNAME@$VPS_HOST "cd $DEPLOY_PATH && git checkout staging"
-          
-          # 1. Pull latest code on VPS
-          sshpass -e ssh -o StrictHostKeyChecking=no $VPS_USERNAME@$VPS_HOST "cd $DEPLOY_PATH && git pull origin staging"
-          
-          # 2. Stop running containers, rebuild and start
-          sshpass -e ssh -o StrictHostKeyChecking=no $VPS_USERNAME@$VPS_HOST "cd $DEPLOY_PATH && \
+          # Function to execute SSH commands with error handling
+          ssh_exec() {
+            if ! sshpass -e ssh $SSH_OPTS $VPS_USERNAME@$VPS_HOST "$1"; then
+              echo "Error executing: $1"
+              exit 1
+            fi
+          }
+
+          # Initialize or update repository
+          ssh_exec "cd $DEPLOY_PATH && \
+            (git fetch origin staging || git fetch --all) && \
+            (git checkout staging || git checkout -b staging origin/staging)"
+
+          # Continue with deployment
+          ssh_exec "cd $DEPLOY_PATH && git pull origin staging"
+          ssh_exec "cd $DEPLOY_PATH && \
             docker-compose down && \
             docker-compose build --no-cache && \
-            docker-compose up -d"
+            docker-compose up -d && \
+            docker-compose ps"
