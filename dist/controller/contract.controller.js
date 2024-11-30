@@ -66,13 +66,47 @@ class contractController {
     updateContract(req, res) {
         return __awaiter(this, void 0, void 0, function* () {
             try {
-                const { id, contractNumber, customer, contractType, signersCount, status, note, } = req.body;
-                const createdBy = req.user.id;
-                const contract = yield contract_services_1.default.updateContract(id, contractNumber, customer, contractType, createdBy, signersCount, status, note);
-                res.status(200).json(contract);
+                const { id, contractNumber, customer, contractType, approvalTemplateId, note, signers, createdById, } = req.body;
+                const signersParsed = JSON.parse(signers);
+                // Validate signers array if provided
+                if (signersParsed) {
+                    if (!Array.isArray(signersParsed)) {
+                        return res.status(400).json({
+                            success: false,
+                            message: "Signers must be an array",
+                        });
+                    }
+                    // Kiểm tra tính hợp lệ của mỗi người ký
+                    for (const signer of signersParsed) {
+                        if (!signer.userId || !signer.order) {
+                            return res.status(400).json({
+                                success: false,
+                                message: "Each signer must have userId and order",
+                            });
+                        }
+                    }
+                    // Kiểm tra thứ tự ký có bị trùng không
+                    const orders = signersParsed.map((s) => s.order);
+                    if (new Set(orders).size !== orders.length) {
+                        return res.status(400).json({
+                            success: false,
+                            message: "Duplicate sign orders are not allowed",
+                        });
+                    }
+                }
+                // Lấy đường dẫn file PDF mới nếu có
+                const pdfFilePath = req.file
+                    ? `/uploads/${path.basename(req.file.path)}`
+                    : null;
+                const result = yield contract_services_1.default.updateContract(id, contractNumber, customer, contractType, createdById, note, approvalTemplateId, signersParsed, pdfFilePath);
+                return res.status(200).json(result);
             }
             catch (e) {
-                res.status(404).json({ message: e.message });
+                return res.status(400).json({
+                    success: false,
+                    message: e.message,
+                    details: "Failed to update contract",
+                });
             }
         });
     }
@@ -102,24 +136,48 @@ class contractController {
     }
     successContract(req, res) {
         return __awaiter(this, void 0, void 0, function* () {
-            const { id, status } = req.body;
-            if (status === "signed") {
-                const approvalFlow = yield approvalFlowRepo.find({
-                    where: { contract: { id }, approvalStatus: "approved" },
-                });
-                const contractSignatures = yield contractSignatureRepo.find({
-                    where: { contract: { id }, status: "signed" },
-                });
-                if (!approvalFlow && !contractSignatures) {
+            try {
+                const { id, status } = req.body;
+                if (!id || !status) {
                     return res.status(400).json({
-                        message: "Cannot update contract status to signed. All approvals and signatures must be completed first.",
+                        message: "Contract ID and status are required",
                     });
                 }
+                if (status === "signed") {
+                    const approvalFlow = yield approvalFlowRepo.find({
+                        where: { contract: { id }, approvalStatus: "approved" },
+                    });
+                    const contractSignatures = yield contractSignatureRepo.find({
+                        where: { contract: { id }, status: "signed" },
+                    });
+                    if (!approvalFlow && !contractSignatures) {
+                        return res.status(400).json({
+                            message: "Cannot update contract status to signed. All approvals and signatures must be completed first.",
+                        });
+                    }
+                    yield contractRepo.update(id, { status: "signed" });
+                    return res.status(200).json({
+                        message: "Contract status updated to signed successfully",
+                    });
+                }
+                else if (status === "rejected") {
+                    yield contractRepo.update(id, {
+                        status: "rejected",
+                        note: req.body.note || "Contract rejected",
+                    });
+                    return res.status(200).json({
+                        message: "Contract status updated to rejected successfully",
+                    });
+                }
+                return res.status(400).json({
+                    message: "Invalid status. Supported values are 'signed' and 'rejected'",
+                });
             }
-            yield contractRepo.update(id, { status: "signed" });
-            return res.status(200).json({
-                message: "Contract status updated to signed successfully",
-            });
+            catch (error) {
+                return res.status(500).json({
+                    message: error.message,
+                });
+            }
         });
     }
     deleteMultipleContracts(req, res) {
@@ -336,6 +394,10 @@ class contractController {
                     }
                 }
                 const result = yield contract_services_1.default.approveMultipleContracts(contracts, status, approverId);
+                // Thêm thông tin chi tiết về việc reset nếu reject
+                if (status === "rejected") {
+                    return res.status(200).json(Object.assign(Object.assign({}, result), { message: "Contracts rejected and reset to draft status. All approvals and signatures have been cleared.", details: "These contracts will need to go through the entire approval and signing process again." }));
+                }
                 return res.status(200).json(result);
             }
             catch (e) {

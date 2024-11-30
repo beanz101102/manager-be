@@ -101,6 +101,9 @@ class UserServices {
                 where: whereConditions,
                 skip: skip,
                 take: limit,
+                order: {
+                    createdAt: "DESC",
+                },
             });
             const total = yield userRepo.count({
                 where: whereConditions,

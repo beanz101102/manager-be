@@ -22,32 +22,27 @@ __decorate([
     __metadata("design:type", Number)
 ], ContractApproval.prototype, "id", void 0);
 __decorate([
-    (0, typeorm_1.Column)(),
-    __metadata("design:type", Number)
-], ContractApproval.prototype, "contractId", void 0);
-__decorate([
-    (0, typeorm_1.ManyToOne)(() => contract_entity_1.Contract, (contract) => contract.contractApprovals),
+    (0, typeorm_1.ManyToOne)(() => contract_entity_1.Contract, (contract) => contract.contractApprovals, {
+        nullable: false,
+        onDelete: "CASCADE",
+    }),
     (0, typeorm_1.JoinColumn)({ name: "contractId" }),
     __metadata("design:type", contract_entity_1.Contract)
 ], ContractApproval.prototype, "contract", void 0);
 __decorate([
-    (0, typeorm_1.Column)(),
-    __metadata("design:type", Number)
-], ContractApproval.prototype, "templateStepId", void 0);
-__decorate([
-    (0, typeorm_1.ManyToOne)(() => approval_template_step_entity_1.ApprovalTemplateStep),
-    (0, typeorm_1.JoinColumn)({ name: "templateStepId" }),
-    __metadata("design:type", approval_template_step_entity_1.ApprovalTemplateStep)
-], ContractApproval.prototype, "templateStep", void 0);
-__decorate([
-    (0, typeorm_1.Column)(),
-    __metadata("design:type", Number)
-], ContractApproval.prototype, "approverId", void 0);
-__decorate([
-    (0, typeorm_1.ManyToOne)(() => user_entity_1.User),
+    (0, typeorm_1.ManyToOne)(() => user_entity_1.User, {
+        nullable: false,
+    }),
     (0, typeorm_1.JoinColumn)({ name: "approverId" }),
     __metadata("design:type", user_entity_1.User)
 ], ContractApproval.prototype, "approver", void 0);
+__decorate([
+    (0, typeorm_1.ManyToOne)(() => approval_template_step_entity_1.ApprovalTemplateStep, {
+        nullable: false,
+    }),
+    (0, typeorm_1.JoinColumn)({ name: "templateStepId" }),
+    __metadata("design:type", approval_template_step_entity_1.ApprovalTemplateStep)
+], ContractApproval.prototype, "templateStep", void 0);
 __decorate([
     (0, typeorm_1.Column)({
         type: "enum",

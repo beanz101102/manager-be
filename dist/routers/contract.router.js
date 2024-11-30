@@ -27,7 +27,7 @@ const contractController = new contract_controller_1.default();
 ContractRouter.post("/addContract", upload.single("file"), contractController.createContract);
 ContractRouter.post("/", contractController.allContract);
 ContractRouter.post("/detail", contractController.getDetails);
-ContractRouter.post("/update", contractController.updateContract);
+ContractRouter.post("/update", upload.single("file"), contractController.updateContract);
 ContractRouter.post("/success", contractController.successContract);
 ContractRouter.post("/bulk-delete", contractController.deleteMultipleContracts);
 ContractRouter.post("/rejected-contract", contractController.rejectMultipleContracts);

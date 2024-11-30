@@ -105,8 +105,8 @@ class App {
   }
 
   private listen(): void {
-    this.app.listen(this.appConfig.port, () => {
-      console.log(`server started at http://localhost:${this.appConfig.port}`);
+    this.app.listen(this.appConfig.port, '0.0.0.0', () => {
+      console.log(`server started at http://0.0.0.0:${this.appConfig.port}`);
     });
   }
 }

@@ -39,6 +39,9 @@ class UserSignatureService {
             try {
                 const userSignature = yield userSignatureRepo.find({
                     relations: ["user", "user.department"],
+                    order: {
+                        createdAt: "DESC",
+                    },
                 });
                 return userSignature;
             }

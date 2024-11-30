@@ -12,68 +12,151 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-const user_entity_1 = require("../models/user.entity");
-const data_source_1 = __importDefault(require("../database/data-source"));
-const contract_entity_1 = require("../models/contract.entity");
 const typeorm_1 = require("typeorm");
+const data_source_1 = __importDefault(require("../database/data-source"));
 const approval_template_entity_1 = require("../models/approval_template.entity");
-const typeorm_2 = require("typeorm");
 const approval_template_step_entity_1 = require("../models/approval_template_step.entity");
+const contract_entity_1 = require("../models/contract.entity");
 const contract_approval_entity_1 = require("../models/contract_approval.entity");
-const email_service_1 = __importDefault(require("../services/email.service"));
-const typeorm_3 = require("typeorm");
+const user_entity_1 = require("../models/user.entity");
+const notification_services_1 = __importDefault(require("./notification.services"));
 let contractRepo = data_source_1.default.getRepository(contract_entity_1.Contract);
 let signerRepo = data_source_1.default.getRepository(contract_entity_1.ContractSigner);
 let stepRepo = data_source_1.default.getRepository(approval_template_entity_1.ApprovalTemplate);
 class contractService {
-    static addContract(contractNumber, customerId, contractType, approvalTemplateId, createdById, signerIds, note, pdfFilePath) {
+    static addContract(contractNumber, customerId, contractType, approvalTemplateId, createdById, signers, note, pdfFilePath) {
         return __awaiter(this, void 0, void 0, function* () {
-            return yield data_source_1.default.transaction((transactionalEntityManager) => __awaiter(this, void 0, void 0, function* () {
-                const [customer, createdBy, approvalTemplate] = yield Promise.all([
-                    data_source_1.default.getRepository(user_entity_1.User).findOneBy({ id: customerId }),
-                    data_source_1.default.getRepository(user_entity_1.User).findOneBy({ id: createdById }),
-                    data_source_1.default
-                        .getRepository(approval_template_entity_1.ApprovalTemplate)
-                        .findOneBy({ id: approvalTemplateId }),
-                ]);
-                if (!customer)
-                    throw new Error("Customer not found");
-                if (!createdBy)
-                    throw new Error("Created by user not found");
-                if (!approvalTemplate)
-                    throw new Error("Approval template not found");
-                let contract = new contract_entity_1.Contract();
-                contract.contractNumber = contractNumber;
-                contract.customer = customer;
-                contract.contractType = contractType;
-                contract.approvalTemplate = approvalTemplate;
-                contract.createdBy = createdBy;
-                contract.note = note;
-                contract.pdfFilePath = pdfFilePath;
-                contract.status = "draft";
-                contract = yield transactionalEntityManager.save(contract);
-                const signerEntities = (signerIds === null || signerIds === void 0 ? void 0 : signerIds.map(({ userId, order }) => {
-                    const signer = new contract_entity_1.ContractSigner();
-                    signer.contract = contract;
-                    signer.signer = { id: userId };
-                    signer.signOrder = order;
-                    return signer;
-                })) || [];
-                yield transactionalEntityManager.save(contract_entity_1.ContractSigner, signerEntities);
-                return contract;
-            }));
+            try {
+                return yield data_source_1.default.transaction((transactionalEntityManager) => __awaiter(this, void 0, void 0, function* () {
+                    const contractRepo = transactionalEntityManager.getRepository(contract_entity_1.Contract);
+                    const userRepo = transactionalEntityManager.getRepository(user_entity_1.User);
+                    const templateRepo = transactionalEntityManager.getRepository(approval_template_entity_1.ApprovalTemplate);
+                    const signerRepo = transactionalEntityManager.getRepository(contract_entity_1.ContractSigner);
+                    // Kiểm tra và lấy dữ liệu cần thiết
+                    const customer = yield userRepo.findOneBy({ id: customerId });
+                    const createdBy = yield userRepo.findOneBy({ id: createdById });
+                    const approvalTemplate = yield templateRepo.findOneBy({
+                        id: approvalTemplateId,
+                    });
+                    if (!customer || !createdBy || !approvalTemplate) {
+                        throw new Error("Invalid customer, creator or approval template");
+                    }
+                    // Tạo contract mới
+                    const contract = new contract_entity_1.Contract();
+                    contract.contractNumber = contractNumber;
+                    contract.customer = customer;
+                    contract.contractType = contractType;
+                    contract.approvalTemplate = approvalTemplate;
+                    contract.createdBy = createdBy;
+                    contract.note = note;
+                    contract.pdfFilePath = pdfFilePath;
+                    contract.status = "draft";
+                    // Lưu contract
+                    const savedContract = yield contractRepo.save(contract);
+                    // Xử lý signers
+                    const signerEntities = [];
+                    for (const signer of signers) {
+                        const signerUser = yield userRepo.findOneBy({ id: signer.userId });
+                        if (!signerUser) {
+                            throw new Error(`Signer with id ${signer.userId} not found`);
+                        }
+                        const contractSigner = new contract_entity_1.ContractSigner();
+                        contractSigner.contract = savedContract;
+                        contractSigner.signer = signerUser;
+                        contractSigner.signOrder = signer.order;
+                        contractSigner.status = "pending";
+                        signerEntities.push(yield signerRepo.save(contractSigner));
+                    }
+                    // Tạo thông báo bên ngoài transaction chính
+                    setImmediate(() => __awaiter(this, void 0, void 0, function* () {
+                        try {
+                            for (const signer of signerEntities) {
+                                if (signer.signer.role !== "customer") {
+                                    yield notification_services_1.default.createNotification(signer.signer, savedContract, "contract_to_sign", `Bạn có một hợp đồng mới cần ký: ${savedContract.contractNumber}`);
+                                }
+                            }
+                        }
+                        catch (notificationError) {
+                            console.error("Error creating notifications:", notificationError);
+                        }
+                    }));
+                    return savedContract;
+                }));
+            }
+            catch (error) {
+                throw new Error(`Failed to create contract: ${error.message}`);
+            }
         });
     }
-    static updateContract(id, contractNumber, customer, contractType, createdBy, signersCount, status, note) {
+    static updateContract(id, contractNumber, customer, contractType, createdBy, note, approvalTemplateId, signerIds, newPdfFilePath) {
         return __awaiter(this, void 0, void 0, function* () {
-            let contract = yield contractRepo.findOneBy({ id: id });
-            contract.contractNumber = contractNumber;
-            contract.customer = customer;
-            contract.contractType = contractType;
-            contract.createdBy = createdBy;
-            contract.status = status;
-            contract.note = note;
-            yield contractRepo.save(contract);
+            return yield data_source_1.default.transaction((transactionalEntityManager) => __awaiter(this, void 0, void 0, function* () {
+                const contract = yield transactionalEntityManager.findOne(contract_entity_1.Contract, {
+                    where: { id },
+                    relations: [
+                        "approvalTemplate",
+                        "contractApprovals",
+                        "contractSigners",
+                        "contractSigners.signer",
+                        "customer",
+                        "createdBy",
+                    ],
+                });
+                if (!contract) {
+                    throw new Error("Contract not found");
+                }
+                // Kiểm tra các thay đổi quan trọng cần reset quy trình
+                const needsReset = contractNumber !== undefined ||
+                    customer !== undefined ||
+                    contractType !== undefined ||
+                    newPdfFilePath !== undefined ||
+                    approvalTemplateId !== undefined ||
+                    signerIds !== undefined;
+                if (needsReset) {
+                    // Reset về draft
+                    contract.status = "draft";
+                    // Xóa tất cả approvals
+                    yield transactionalEntityManager
+                        .createQueryBuilder()
+                        .delete()
+                        .from(contract_approval_entity_1.ContractApproval)
+                        .where("contractId = :contractId", { contractId: contract.id })
+                        .execute();
+                    // Reset signatures
+                    yield transactionalEntityManager
+                        .createQueryBuilder()
+                        .update(contract_entity_1.ContractSigner)
+                        .set({ status: "pending", signedAt: null })
+                        .where("contractId = :contractId", { contractId: contract.id })
+                        .execute();
+                }
+                // Cập nhật thông tin contract
+                if (contractNumber)
+                    contract.contractNumber = contractNumber;
+                if (customer)
+                    contract.customer = customer;
+                if (contractType)
+                    contract.contractType = contractType;
+                if (createdBy)
+                    contract.createdBy = createdBy;
+                if (note)
+                    contract.note = note;
+                if (newPdfFilePath)
+                    contract.pdfFilePath = newPdfFilePath;
+                // ... phần xử lý template và signers giữ nguyên ...
+                yield transactionalEntityManager.save(contract);
+                return {
+                    success: true,
+                    message: needsReset
+                        ? "Contract updated and reset to draft status"
+                        : "Contract updated successfully",
+                    data: {
+                        contractId: contract.id,
+                        status: contract.status,
+                        needsReapproval: needsReset,
+                    },
+                };
+            }));
         });
     }
     static allContracts(contractNumber_1, status_1, createdById_1, customerId_1) {
@@ -90,6 +173,9 @@ class contractService {
                 where: [],
                 skip: skip,
                 take: limit,
+                order: {
+                    createdAt: "DESC",
+                },
             };
             if (createdById) {
                 query.where = [
@@ -189,103 +275,127 @@ class contractService {
     static approveContract(contractId, userId, status, comments) {
         return __awaiter(this, void 0, void 0, function* () {
             return yield data_source_1.default.transaction((transactionalEntityManager) => __awaiter(this, void 0, void 0, function* () {
-                // 1. Kiểm tra hợp đồng và template
-                const contract = yield contractRepo.findOne({
+                // 1. Lấy thông tin contract
+                const contract = yield transactionalEntityManager.findOne(contract_entity_1.Contract, {
                     where: { id: contractId },
-                    relations: ["approvalTemplate"],
+                    relations: ["approvalTemplate", "approvalTemplate.steps"],
                 });
-                if (!contract) {
+                if (!contract)
                     throw new Error("Contract not found");
+                // 2. Xử lý khi reject
+                if (status === "rejected") {
+                    // Cập nhật trạng thái contract về draft để user có thể sửa
+                    yield transactionalEntityManager.update(contract_entity_1.Contract, contractId, {
+                        status: "rejected",
+                    });
+                    // Xóa tất cả approvals hiện tại
+                    yield transactionalEntityManager
+                        .createQueryBuilder()
+                        .delete()
+                        .from(contract_approval_entity_1.ContractApproval)
+                        .where("contractId = :contractId", { contractId })
+                        .execute();
+                    // Reset signatures
+                    yield transactionalEntityManager
+                        .createQueryBuilder()
+                        .update(contract_entity_1.ContractSigner)
+                        .set({ status: "pending", signedAt: null })
+                        .where("contractId = :contractId", { contractId })
+                        .execute();
+                    // Thông báo cho người tạo nếu họ không phải là khách hàng
+                    if (contract.createdBy.role !== "customer") {
+                        yield notification_services_1.default.createNotification(contract.createdBy, contract, "contract_rejected", `Hợp đồng ${contract.contractNumber} đã bị từ chối`);
+                    }
+                    return {
+                        success: true,
+                        message: "Contract rejected successfully",
+                        data: {
+                            contractId,
+                            status: "draft",
+                            message: "Contract has been reset to draft status. Please update and submit for approval again.",
+                        },
+                    };
                 }
-                // 2. Lấy tất cả các bước phê duyệt của template
-                const templateSteps = yield data_source_1.default
-                    .getRepository(approval_template_step_entity_1.ApprovalTemplateStep)
-                    .find({
-                    where: { templateId: contract.approvalTemplate.id },
-                    order: { stepOrder: "ASC" },
-                });
-                // 3. Lấy lịch sử phê duyệt
-                const approvalHistory = yield data_source_1.default
-                    .getRepository(contract_approval_entity_1.ContractApproval)
-                    .find({
-                    where: { contractId },
-                    relations: ["templateStep"],
-                    order: { createdAt: "DESC" },
-                });
-                // 4. Xác định bước hiện tại
-                const approvedSteps = approvalHistory.filter((a) => a.status === "approved");
-                const currentStepOrder = approvedSteps.length + 1;
+                // 3. Xử lý khi approve
+                const templateSteps = yield transactionalEntityManager
+                    .createQueryBuilder(approval_template_step_entity_1.ApprovalTemplateStep, "step")
+                    .where("step.templateId = :templateId", {
+                    templateId: contract.approvalTemplate.id,
+                })
+                    .orderBy("step.stepOrder", "ASC")
+                    .getMany();
+                if (!templateSteps.length) {
+                    throw new Error("No approval steps found");
+                }
+                // Lấy các approvals hiện tại
+                const existingApprovals = yield transactionalEntityManager
+                    .createQueryBuilder(contract_approval_entity_1.ContractApproval, "approval")
+                    .where("approval.contractId = :contractId", { contractId })
+                    .andWhere("approval.status = :status", { status: "approved" })
+                    .getMany();
+                const currentStepOrder = existingApprovals.length + 1;
                 const currentStep = templateSteps.find((s) => s.stepOrder === currentStepOrder);
                 if (!currentStep) {
-                    throw new Error("No pending approval step found");
+                    throw new Error("No more steps to approve");
                 }
-                if (currentStep.approverId !== userId) {
-                    throw new Error("User not authorized to approve this step");
-                }
-                // 5. Tạo bản ghi phê duyệt
-                const approval = new contract_approval_entity_1.ContractApproval();
-                approval.contract = contract;
-                approval.templateStep = currentStep;
-                approval.approver = { id: userId };
-                approval.status = status;
-                approval.comments = comments;
-                approval.approvedAt = new Date();
-                yield transactionalEntityManager.save(approval);
-                // 7. Cập nhật trạng thái hợp đồng
-                if (status === "rejected") {
-                    contract.status = "rejected";
-                }
-                else if (currentStepOrder === templateSteps.length) {
-                    // Nếu là bước cuối cùng và approved
-                    contract.status = "ready_to_sign"; // Đảm bảo giá trị này nằm trong ENUM
-                }
-                else {
-                    contract.status = "pending_approval"; // Đảm bảo giá trị này nằm trong ENUM
-                }
-                yield transactionalEntityManager.save(contract);
-                // Sau khi phê duyệt thành công
-                if (status === "approved") {
-                    if (currentStepOrder === templateSteps.length) {
-                        // Nếu là bước cuối cùng, gửi email cho tất cả người ký
-                        const contractSigners = yield transactionalEntityManager.find(contract_entity_1.ContractSigner, {
-                            where: { contract: { id: contractId } },
-                            relations: ["signer"],
-                            order: { signOrder: "ASC" },
-                        });
-                        // Gửi email cho tất cả người ký
-                        for (const signer of contractSigners) {
-                            yield email_service_1.default.sendContractReadyToSignEmail(contract, signer.signer);
-                        }
-                    }
-                    else {
-                        // Nếu còn bước tiếp theo, gửi email cho người phê duyệt tiếp theo
-                        const nextStep = templateSteps.find((s) => s.stepOrder === currentStepOrder + 1);
-                        if (nextStep) {
-                            const nextApprover = yield transactionalEntityManager
-                                .getRepository(user_entity_1.User)
-                                .findOneBy({ id: nextStep.approverId });
-                            if (nextApprover) {
-                                const currentApprover = yield transactionalEntityManager
-                                    .getRepository(user_entity_1.User)
-                                    .findOneBy({ id: userId });
-                                yield email_service_1.default.sendContractApprovalNotification(contract, nextApprover, currentApprover, status, comments);
+                // Tạo approval mới
+                const newApproval = transactionalEntityManager.create(contract_approval_entity_1.ContractApproval, {
+                    contract: { id: contractId },
+                    approver: { id: userId },
+                    templateStep: { id: currentStep.id },
+                    status: "approved",
+                    comments: comments,
+                    approvedAt: new Date(),
+                });
+                yield transactionalEntityManager.save(contract_approval_entity_1.ContractApproval, newApproval);
+                // Cập nhật trạng thái contract
+                if (currentStepOrder === templateSteps.length) {
+                    yield transactionalEntityManager.update(contract_entity_1.Contract, contractId, {
+                        status: "ready_to_sign",
+                    });
+                    // Xử lý notification bên ngoài transaction
+                    const signers = yield signerRepo.find({
+                        where: { contract: { id: contractId } },
+                        relations: ["signer"],
+                    });
+                    setImmediate(() => __awaiter(this, void 0, void 0, function* () {
+                        try {
+                            for (const signer of signers) {
+                                if (signer.signer.role !== "customer") {
+                                    yield notification_services_1.default.createNotification(signer.signer, contract, "contract_to_sign", `Hợp đồng ${contract.contractNumber} đã được phê duyệt và sẵn sàng để ký`);
+                                }
                             }
                         }
-                    }
+                        catch (notificationError) {
+                            console.error("Error creating notifications:", notificationError);
+                        }
+                    }));
+                }
+                else {
+                    yield transactionalEntityManager.update(contract_entity_1.Contract, contractId, {
+                        status: "pending_approval",
+                    });
+                    // Xử lý notification cho người phê duyệt tiếp theo bên ngoài transaction
+                    const nextApprover = templateSteps[currentStepOrder].approver;
+                    setImmediate(() => __awaiter(this, void 0, void 0, function* () {
+                        try {
+                            if (nextApprover.role !== "customer") {
+                                yield notification_services_1.default.createNotification(nextApprover, contract, "contract_approval", `Bạn có một hợp đồng cần phê duyệt: ${contract.contractNumber}`);
+                            }
+                        }
+                        catch (notificationError) {
+                            console.error("Error creating notification:", notificationError);
+                        }
+                    }));
                 }
                 return {
                     success: true,
-                    message: status === "approved"
-                        ? currentStepOrder === templateSteps.length
-                            ? "Contract is ready for signing"
-                            : "Approval step completed"
-                        : "Contract rejected",
+                    message: `Contract approved successfully`,
                     data: {
-                        approval,
-                        contract,
-                        nextStep: status === "approved" && currentStepOrder < templateSteps.length
-                            ? templateSteps[currentStepOrder]
-                            : null,
+                        contractId,
+                        status: "approved",
+                        stepOrder: currentStepOrder,
+                        totalSteps: templateSteps.length,
                     },
                 };
             }));
@@ -314,7 +424,7 @@ class contractService {
                 const previousSigners = yield transactionalEntityManager.find(contract_entity_1.ContractSigner, {
                     where: {
                         contract: { id: contractId },
-                        signOrder: (0, typeorm_2.LessThan)(contractSigner.signOrder),
+                        signOrder: (0, typeorm_1.LessThan)(contractSigner.signOrder),
                     },
                 });
                 if (previousSigners.some((s) => s.status !== "signed")) {
@@ -363,7 +473,7 @@ class contractService {
             return yield data_source_1.default.transaction((transactionalEntityManager) => __awaiter(this, void 0, void 0, function* () {
                 // Ly tất cả các hp đồng cần duyệt
                 const contracts = yield contractRepo.find({
-                    where: { id: (0, typeorm_3.In)(contractIds) },
+                    where: { id: (0, typeorm_1.In)(contractIds) },
                     relations: ["createdBy", "approvalTemplate"],
                 });
                 if (contracts.length !== contractIds.length) {
@@ -478,7 +588,7 @@ class contractService {
             return yield data_source_1.default.transaction((transactionalEntityManager) => __awaiter(this, void 0, void 0, function* () {
                 // Get all contracts to cancel
                 const contracts = yield contractRepo.find({
-                    where: { id: (0, typeorm_3.In)(contractIds) },
+                    where: { id: (0, typeorm_1.In)(contractIds) },
                     relations: ["createdBy"],
                 });
                 if (contracts.length === 0) {

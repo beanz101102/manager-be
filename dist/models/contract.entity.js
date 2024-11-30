@@ -28,6 +28,7 @@ __decorate([
 ], Contract.prototype, "contractNumber", void 0);
 __decorate([
     (0, typeorm_1.ManyToOne)(() => user_entity_1.User, { nullable: false }),
+    (0, typeorm_1.JoinColumn)({ name: "customerId" }),
     __metadata("design:type", user_entity_1.User)
 ], Contract.prototype, "customer", void 0);
 __decorate([
@@ -36,10 +37,12 @@ __decorate([
 ], Contract.prototype, "contractType", void 0);
 __decorate([
     (0, typeorm_1.ManyToOne)(() => approval_template_entity_1.ApprovalTemplate, { nullable: false }),
+    (0, typeorm_1.JoinColumn)({ name: "approvalTemplateId" }),
     __metadata("design:type", approval_template_entity_1.ApprovalTemplate)
 ], Contract.prototype, "approvalTemplate", void 0);
 __decorate([
     (0, typeorm_1.ManyToOne)(() => user_entity_1.User, { nullable: false }),
+    (0, typeorm_1.JoinColumn)({ name: "createdById" }),
     __metadata("design:type", user_entity_1.User)
 ], Contract.prototype, "createdBy", void 0);
 __decorate([
@@ -108,12 +111,17 @@ __decorate([
 ], ContractSigner.prototype, "id", void 0);
 __decorate([
     (0, typeorm_1.ManyToOne)(() => Contract, (contract) => contract.signers, {
+        nullable: false,
         onDelete: "CASCADE",
     }),
+    (0, typeorm_1.JoinColumn)({ name: "contractId" }),
     __metadata("design:type", Contract)
 ], ContractSigner.prototype, "contract", void 0);
 __decorate([
-    (0, typeorm_1.ManyToOne)(() => user_entity_1.User),
+    (0, typeorm_1.ManyToOne)(() => user_entity_1.User, {
+        nullable: false,
+    }),
+    (0, typeorm_1.JoinColumn)({ name: "signerId" }),
     __metadata("design:type", user_entity_1.User)
 ], ContractSigner.prototype, "signer", void 0);
 __decorate([

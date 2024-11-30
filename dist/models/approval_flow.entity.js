@@ -22,6 +22,7 @@ __decorate([
 ], ApprovalFlow.prototype, "id", void 0);
 __decorate([
     (0, typeorm_1.ManyToOne)(() => contract_entity_1.Contract, { nullable: false }),
+    (0, typeorm_1.JoinColumn)({ name: "contractId" }),
     __metadata("design:type", contract_entity_1.Contract)
 ], ApprovalFlow.prototype, "contract", void 0);
 __decorate([
@@ -30,6 +31,7 @@ __decorate([
 ], ApprovalFlow.prototype, "stepNumber", void 0);
 __decorate([
     (0, typeorm_1.ManyToOne)(() => user_entity_1.User, { nullable: false }),
+    (0, typeorm_1.JoinColumn)({ name: "approverId" }),
     __metadata("design:type", user_entity_1.User)
 ], ApprovalFlow.prototype, "approver", void 0);
 __decorate([
@@ -37,11 +39,15 @@ __decorate([
     __metadata("design:type", String)
 ], ApprovalFlow.prototype, "action", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ type: 'enum', enum: ['internal', 'customer'] }),
+    (0, typeorm_1.Column)({ type: "enum", enum: ["internal", "customer"] }),
     __metadata("design:type", String)
 ], ApprovalFlow.prototype, "actionSource", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ type: 'enum', enum: ['pending', 'approved', 'rejected'], default: 'pending' }),
+    (0, typeorm_1.Column)({
+        type: "enum",
+        enum: ["pending", "approved", "rejected"],
+        default: "pending",
+    }),
     __metadata("design:type", String)
 ], ApprovalFlow.prototype, "approvalStatus", void 0);
 __decorate([
@@ -49,7 +55,7 @@ __decorate([
     __metadata("design:type", Date)
 ], ApprovalFlow.prototype, "approvalDate", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ type: 'text', nullable: true }),
+    (0, typeorm_1.Column)({ type: "text", nullable: true }),
     __metadata("design:type", String)
 ], ApprovalFlow.prototype, "comments", void 0);
 exports.ApprovalFlow = ApprovalFlow = __decorate([

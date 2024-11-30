@@ -7,6 +7,7 @@ const express_1 = __importDefault(require("express"));
 const cors_1 = __importDefault(require("cors"));
 const cookie_session_1 = __importDefault(require("cookie-session"));
 const path_1 = __importDefault(require("path"));
+const data_source_1 = __importDefault(require("./database/data-source"));
 const app_config_1 = __importDefault(require("./config/app.config"));
 const auth_router_1 = __importDefault(require("./routers/auth.router"));
 const user_router_1 = __importDefault(require("./routers/user.router"));
@@ -18,6 +19,7 @@ const fs_1 = __importDefault(require("fs"));
 const userSignature_router_1 = __importDefault(require("./routers/userSignature.router"));
 const contractSignature_router_1 = __importDefault(require("./routers/contractSignature.router"));
 const approvalFlow_router_1 = __importDefault(require("./routers/approvalFlow.router"));
+const notification_router_1 = __importDefault(require("./routers/notification.router"));
 class App {
     constructor() {
         this.app = (0, express_1.default)();
@@ -34,61 +36,55 @@ class App {
           this.app.use(express.static(path.join(__dirname, 'FileName'), { maxAge:  this.appConfig.expiredStaticFiles}));
       } */
     setupMiddlewares() {
-        // Add headers before the CORS middleware
-        this.app.use((req, res, next) => {
-            res.header("Access-Control-Allow-Origin", "http://localhost:3000");
-            res.header("Access-Control-Allow-Credentials", "true");
-            res.header("Access-Control-Allow-Methods", "GET,HEAD,PUT,PATCH,POST,DELETE");
-            res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, Authorization");
-            // Handle preflight requests
-            if (req.method === "OPTIONS") {
-                res.header("Access-Control-Allow-Methods", "GET,HEAD,PUT,PATCH,POST,DELETE");
-                return res.status(200).json({});
-            }
-            next();
-        });
         this.app.use(express_1.default.json());
         this.app.use(express_1.default.urlencoded({ extended: true }));
+        // CORS configuration
+        const allowedOrigins = [
+            'https://contract-manager-five.vercel.app',
+            'http://localhost:3000', // React default port
+            'http://localhost:3001', // Để phòng trường hợp port khác
+            'http://127.0.0.1:3000',
+            'http://127.0.0.1:3001'
+        ];
+        this.app.use((0, cors_1.default)({
+            origin: function (origin, callback) {
+                // allow requests with no origin (like mobile apps or curl requests)
+                if (!origin)
+                    return callback(null, true);
+                if (allowedOrigins.indexOf(origin) === -1) {
+                    const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
+                    return callback(new Error(msg), false);
+                }
+                return callback(null, true);
+            },
+            credentials: true,
+            methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+            allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Origin', 'Accept']
+        }));
         this.app.use((0, cookie_session_1.default)({
             name: "session",
             keys: [this.appConfig.sessionKey],
             maxAge: this.appConfig.sessionMaxAge,
-            secure: false, // Set to true in production with HTTPS
+            secure: false,
             sameSite: "lax",
-        }));
-        // Updated CORS configuration
-        this.app.use((0, cors_1.default)({
-            origin: ["http://localhost:3000", "http://localhost:5173"],
-            credentials: true,
-            methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-            allowedHeaders: [
-                "Content-Type",
-                "Authorization",
-                "X-Requested-With",
-                "Origin",
-                "Accept",
-            ],
-            exposedHeaders: ["Content-Range", "X-Content-Range"],
-            preflightContinue: false,
-            optionsSuccessStatus: 204,
         }));
         const uploadsDir = path_1.default.join(__dirname, "../uploads");
         if (!fs_1.default.existsSync(uploadsDir)) {
             fs_1.default.mkdirSync(uploadsDir, { recursive: true });
         }
-        // Serve static files from the 'uploads' directory
         this.app.use("/uploads", express_1.default.static(uploadsDir));
-        // Test
-        // this.app.use('/test', async (req, res) => {
-        //   let transactionRepo = dataSource.getRepository(Transaction)
-        //   let result = await transactionRepo.createQueryBuilder('trans')
-        //       .where('trans.date >= :startDate', {startDate: '2023-02-22'})
-        //       .getMany()
-        //   res.json(result)
-        // })
-        // //
+        data_source_1.default.setOptions({
+            extra: {
+                // Increase lock timeout (default is 50 seconds)
+                innodb_lock_wait_timeout: 180,
+                // Add connection retry strategy
+                connectionLimit: 10,
+                acquireTimeout: 60000, // 60 seconds
+                waitForConnections: true,
+                queueLimit: 0,
+            },
+        });
         this.app.use("/api/auth", auth_router_1.default);
-        // this.app.use(AuthMiddleware.checkAuthentication);
         this.app.use("/api/department", department_router_1.default);
         this.app.use("/api/contract_attachment", contractAttachment_router_1.default);
         this.app.use("/api/user_signature", userSignature_router_1.default);
@@ -96,10 +92,11 @@ class App {
         this.app.use("/api/contract", contract_router_1.default);
         this.app.use("/api/contract_signature", contractSignature_router_1.default);
         this.app.use("/api/approval_flow", approvalFlow_router_1.default);
+        this.app.use("/api/notifications", notification_router_1.default);
     }
     listen() {
-        this.app.listen(this.appConfig.port, () => {
-            console.log(`server started at http://localhost:${this.appConfig.port}`);
+        this.app.listen(this.appConfig.port, '0.0.0.0', () => {
+            console.log(`server started at http://0.0.0.0:${this.appConfig.port}`);
         });
     }
 }
