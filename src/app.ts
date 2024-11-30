@@ -40,66 +40,13 @@ class App {
     this.app.use(express.urlencoded({ extended: true }));
 
     // CORS configuration
-    const allowedOrigins = [
-        'https://contract-manager-five.vercel.app',
-        'http://localhost:3000',
-        'http://localhost:3001',
-        'http://127.0.0.1:3000',
-        'http://127.0.0.1:3001',
-        'https://phatdat.online'
-    ];
-
-    // Add detailed CORS logging middleware
-    this.app.use((req, res, next) => {
-        console.log('Incoming request:', {
-            method: req.method,
-            url: req.url,
-            origin: req.headers.origin,
-            headers: req.headers
-        });
-        next();
-    });
-
     this.app.use(cors({
-        origin: function(origin, callback) {
-            console.log('Request origin:', origin);
-            
-            // Allow requests with no origin (like mobile apps or curl requests)
-            if(!origin) {
-                console.log('No origin, allowing request');
-                return callback(null, true);
-            }
-            
-            if(allowedOrigins.indexOf(origin) === -1){
-                console.log('Origin not allowed:', origin);
-                // Instead of returning error, allow all origins during development
-                return callback(null, true);
-            }
-            
-            console.log('Origin allowed:', origin);
-            return callback(null, true);
-        },
+        origin: true, // Allow all origins
         credentials: true,
         methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
         allowedHeaders: ['Authorization', 'Content-Type', 'X-Requested-With', 'Origin', 'Accept'],
         exposedHeaders: ['Authorization']
     }));
-
-    // Add response headers middleware
-    this.app.use((req, res, next) => {
-        res.header('Access-Control-Allow-Origin', req.headers.origin || '*');
-        res.header('Access-Control-Allow-Credentials', 'true');
-        res.header('Access-Control-Allow-Methods', 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS');
-        res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
-        
-        // Handle preflight requests
-        if (req.method === 'OPTIONS') {
-            console.log('Handling OPTIONS request');
-            return res.status(200).end();
-        }
-        
-        next();
-    });
 
     this.app.use(
       cookieSession({
