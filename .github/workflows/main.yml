@@ -1,0 +1,41 @@
+name: Deploy to VPS
+
+on:
+  push:
+    branches:
+      - staging
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          ref: staging
+          fetch-depth: 0
+
+      - name: Install sshpass
+        run: sudo apt-get install -y sshpass
+          
+      - name: Deploy to VPS
+        env:
+          DEPLOY_PATH: "/root/projects/manager-be"
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USERNAME: ${{ secrets.VPS_USERNAME }}
+          VPS_PASSWORD: ${{ secrets.VPS_PASSWORD }}
+        run: |
+          # Export SSHPASS
+          export SSHPASS=$VPS_PASSWORD
+
+          # 0. Checkout to staging branch
+          sshpass -e ssh -o StrictHostKeyChecking=no $VPS_USERNAME@$VPS_HOST "cd $DEPLOY_PATH && git checkout staging"
+          
+          # 1. Pull latest code on VPS
+          sshpass -e ssh -o StrictHostKeyChecking=no $VPS_USERNAME@$VPS_HOST "cd $DEPLOY_PATH && git pull origin staging"
+          
+          # 2. Stop running containers, rebuild and start
+          sshpass -e ssh -o StrictHostKeyChecking=no $VPS_USERNAME@$VPS_HOST "cd $DEPLOY_PATH && \
+            docker-compose down && \
+            docker-compose build --no-cache && \
+            docker-compose up -d"
