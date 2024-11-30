@@ -38,11 +38,12 @@ jobs:
 
           # Deploy to VPS
           ssh_exec "cd $DEPLOY_PATH && \
-            # Backup certbot directory
+            # Backup important files
             if [ -d certbot ]; then cp -r certbot certbot_backup; fi && \
             
-            # Stash any local changes
-            git stash save 'Backup of local changes' || true && \
+            # Clean untracked files and reset working directory
+            git clean -fd && \
+            git checkout -- . && \
             
             # Fetch and reset to match remote
             git fetch origin staging && \
@@ -54,7 +55,11 @@ jobs:
               mv certbot_backup certbot; \
             fi && \
             
-            # Rebuild and restart containers
+            # Verify nginx config before restart
+            docker-compose up -d nginx && \
+            docker-compose exec -T nginx nginx -t && \
+            
+            # If nginx config is valid, restart all services
             docker-compose down && \
             docker-compose build --no-cache && \
             docker-compose up -d && \
