@@ -10,6 +10,7 @@ import EmailService from "../services/email.service";
 import { In } from "typeorm";
 import path from "path";
 import fs from "fs";
+import NotificationService from "./notification.services";
 let contractRepo = dataSource.getRepository(Contract);
 let signerRepo = dataSource.getRepository(ContractSigner);
 let stepRepo = dataSource.getRepository(ApprovalTemplate);
@@ -22,48 +23,87 @@ class contractService {
     contractType: string,
     approvalTemplateId: number,
     createdById: number,
-    signerIds: { userId: number; order: number }[],
+    signers: any[],
     note: string,
     pdfFilePath: string
   ): Promise<Contract> {
-    return await dataSource.transaction(async (transactionalEntityManager) => {
-      const [customer, createdBy, approvalTemplate] = await Promise.all([
-        dataSource.getRepository(User).findOneBy({ id: customerId }),
-        dataSource.getRepository(User).findOneBy({ id: createdById }),
-        dataSource
-          .getRepository(ApprovalTemplate)
-          .findOneBy({ id: approvalTemplateId }),
-      ]);
+    try {
+      return await dataSource.transaction(
+        async (transactionalEntityManager) => {
+          const contractRepo =
+            transactionalEntityManager.getRepository(Contract);
+          const userRepo = transactionalEntityManager.getRepository(User);
+          const templateRepo =
+            transactionalEntityManager.getRepository(ApprovalTemplate);
+          const signerRepo =
+            transactionalEntityManager.getRepository(ContractSigner);
 
-      if (!customer) throw new Error("Customer not found");
-      if (!createdBy) throw new Error("Created by user not found");
-      if (!approvalTemplate) throw new Error("Approval template not found");
+          // Kiểm tra và lấy dữ liệu cần thiết
+          const customer = await userRepo.findOneBy({ id: customerId });
+          const createdBy = await userRepo.findOneBy({ id: createdById });
+          const approvalTemplate = await templateRepo.findOneBy({
+            id: approvalTemplateId,
+          });
 
-      let contract = new Contract();
-      contract.contractNumber = contractNumber;
-      contract.customer = customer;
-      contract.contractType = contractType;
-      contract.approvalTemplate = approvalTemplate;
-      contract.createdBy = createdBy;
-      contract.note = note;
-      contract.pdfFilePath = pdfFilePath;
-      contract.status = "draft";
+          if (!customer || !createdBy || !approvalTemplate) {
+            throw new Error("Invalid customer, creator or approval template");
+          }
 
-      contract = await transactionalEntityManager.save(contract);
+          // Tạo contract mới
+          const contract = new Contract();
+          contract.contractNumber = contractNumber;
+          contract.customer = customer;
+          contract.contractType = contractType;
+          contract.approvalTemplate = approvalTemplate;
+          contract.createdBy = createdBy;
+          contract.note = note;
+          contract.pdfFilePath = pdfFilePath;
+          contract.status = "draft";
 
-      const signerEntities =
-        signerIds?.map(({ userId, order }) => {
-          const signer = new ContractSigner();
-          signer.contract = contract;
-          signer.signer = { id: userId } as User;
-          signer.signOrder = order;
-          return signer;
-        }) || [];
+          // Lưu contract
+          const savedContract = await contractRepo.save(contract);
 
-      await transactionalEntityManager.save(ContractSigner, signerEntities);
+          // Xử lý signers
+          const signerEntities = [];
+          for (const signer of signers) {
+            const signerUser = await userRepo.findOneBy({ id: signer.userId });
+            if (!signerUser) {
+              throw new Error(`Signer with id ${signer.userId} not found`);
+            }
 
-      return contract;
-    });
+            const contractSigner = new ContractSigner();
+            contractSigner.contract = savedContract;
+            contractSigner.signer = signerUser;
+            contractSigner.signOrder = signer.order;
+            contractSigner.status = "pending";
+
+            signerEntities.push(await signerRepo.save(contractSigner));
+          }
+
+          // Tạo thông báo bên ngoài transaction chính
+          setImmediate(async () => {
+            try {
+              for (const signer of signerEntities) {
+                if (signer.signer.role !== "customer") {
+                  await NotificationService.createNotification(
+                    signer.signer,
+                    savedContract,
+                    "contract_to_sign",
+                    `Bạn có một hợp đồng mới cần ký: ${savedContract.contractNumber}`
+                  );
+                }
+              }
+            } catch (notificationError) {
+              console.error("Error creating notifications:", notificationError);
+            }
+          });
+
+          return savedContract;
+        }
+      );
+    } catch (error) {
+      throw new Error(`Failed to create contract: ${error.message}`);
+    }
   }
 
   static async updateContract(
@@ -339,6 +379,16 @@ class contractService {
           .where("contractId = :contractId", { contractId })
           .execute();
 
+        // Thông báo cho người tạo nếu họ không phải là khách hàng
+        if (contract.createdBy.role !== "customer") {
+          await NotificationService.createNotification(
+            contract.createdBy,
+            contract,
+            "contract_rejected",
+            `Hợp đồng ${contract.contractNumber} đã bị từ chối`
+          );
+        }
+
         return {
           success: true,
           message: "Contract rejected successfully",
@@ -397,10 +447,38 @@ class contractService {
         await transactionalEntityManager.update(Contract, contractId, {
           status: "ready_to_sign",
         });
+
+        // Thông báo cho người ký khi hợp đồng sẵn sàng để ký
+        const signers = await signerRepo.find({
+          where: { contract: { id: contractId } },
+          relations: ["signer"],
+        });
+
+        for (const signer of signers) {
+          if (signer.signer.role !== "customer") {
+            await NotificationService.createNotification(
+              signer.signer,
+              contract,
+              "contract_to_sign",
+              `Hợp đồng ${contract.contractNumber} đã được phê duyệt và sẵn sàng để ký`
+            );
+          }
+        }
       } else {
         await transactionalEntityManager.update(Contract, contractId, {
           status: "pending_approval",
         });
+
+        // Thông báo cho người phê duyệt tiếp theo nếu không phải là khách hàng
+        const nextApprover = templateSteps[currentStepOrder].approver;
+        if (nextApprover.role !== "customer") {
+          await NotificationService.createNotification(
+            nextApprover,
+            contract,
+            "contract_approval",
+            `Bạn có một hợp đồng cần phê duyệt: ${contract.contractNumber}`
+          );
+        }
       }
 
       return {

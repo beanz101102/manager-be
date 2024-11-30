@@ -14,6 +14,7 @@ import fs from "fs";
 import UserSignatureRouter from "./routers/userSignature.router";
 import ContractSignatureRouter from "./routers/contractSignature.router";
 import ApprovalFlowRouter from "./routers/approvalFlow.router";
+import notificationRouter from "./routers/notification.router";
 
 class App {
   private app: express.Application = express();
@@ -35,57 +36,59 @@ class App {
         this.app.use(express.static(path.join(__dirname, 'FileName'), { maxAge:  this.appConfig.expiredStaticFiles}));
     } */
   private setupMiddlewares(): void {
-    // Add headers before the CORS middleware
+    this.app.use(express.json());
+    this.app.use(express.urlencoded({ extended: true }));
+
+    // Danh sách các domain được phép truy cập
+    const allowedOrigins = [
+      "http://localhost:3000",
+      "http://localhost:5173",
+      "https://contract-manager-five.vercel.app",
+    ];
+
+    // Middleware kiểm tra origin trước khi cho phép truy cập
     this.app.use((req, res, next) => {
-      res.header("Access-Control-Allow-Origin", "http://localhost:3000");
-      res.header("Access-Control-Allow-Credentials", "true");
-      res.header(
-        "Access-Control-Allow-Methods",
-        "GET,HEAD,PUT,PATCH,POST,DELETE"
-      );
-      res.header(
-        "Access-Control-Allow-Headers",
-        "Origin, X-Requested-With, Content-Type, Accept, Authorization"
-      );
-      // Handle preflight requests
-      if (req.method === "OPTIONS") {
-        res.header(
+      console.log("Request Origin:", req.headers.origin);
+      console.log("Request Method:", req.method);
+      console.log("Request Path:", req.path);
+
+      const origin = req.headers.origin;
+      if (origin && allowedOrigins.includes(origin)) {
+        res.setHeader("Access-Control-Allow-Origin", origin);
+        res.setHeader("Access-Control-Allow-Credentials", "true");
+        res.setHeader(
           "Access-Control-Allow-Methods",
           "GET,HEAD,PUT,PATCH,POST,DELETE"
         );
-        return res.status(200).json({});
+        res.setHeader(
+          "Access-Control-Allow-Headers",
+          [
+            "Content-Type",
+            "Authorization",
+            "X-Requested-With",
+            "Origin",
+            "Accept",
+          ].join(",")
+        );
+        console.log("CORS allowed for origin:", origin);
+      } else {
+        console.log("CORS blocked for origin:", origin);
+      }
+
+      // Handle preflight requests
+      if (req.method === "OPTIONS") {
+        return res.sendStatus(204);
       }
       next();
     });
 
-    this.app.use(express.json());
-    this.app.use(express.urlencoded({ extended: true }));
     this.app.use(
       cookieSession({
         name: "session",
         keys: [this.appConfig.sessionKey],
         maxAge: this.appConfig.sessionMaxAge,
-        secure: false, // Set to true in production with HTTPS
+        secure: false,
         sameSite: "lax",
-      })
-    );
-
-    // Updated CORS configuration
-    this.app.use(
-      cors({
-        origin: ["http://localhost:3000", "http://localhost:5173"],
-        credentials: true,
-        methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-        allowedHeaders: [
-          "Content-Type",
-          "Authorization",
-          "X-Requested-With",
-          "Origin",
-          "Accept",
-        ],
-        exposedHeaders: ["Content-Range", "X-Content-Range"],
-        preflightContinue: false,
-        optionsSuccessStatus: 204,
       })
     );
 
@@ -94,23 +97,21 @@ class App {
       fs.mkdirSync(uploadsDir, { recursive: true });
     }
 
-    // Serve static files from the 'uploads' directory
     this.app.use("/uploads", express.static(uploadsDir));
 
-    // Test
-
-    // this.app.use('/test', async (req, res) => {
-    //   let transactionRepo = dataSource.getRepository(Transaction)
-    //   let result = await transactionRepo.createQueryBuilder('trans')
-    //       .where('trans.date >= :startDate', {startDate: '2023-02-22'})
-    //       .getMany()
-    //   res.json(result)
-    // })
-
-    // //
+    dataSource.setOptions({
+      extra: {
+        // Increase lock timeout (default is 50 seconds)
+        innodb_lock_wait_timeout: 180,
+        // Add connection retry strategy
+        connectionLimit: 10,
+        acquireTimeout: 60000, // 60 seconds
+        waitForConnections: true,
+        queueLimit: 0,
+      },
+    });
 
     this.app.use("/api/auth", AuthRouter);
-    // this.app.use(AuthMiddleware.checkAuthentication);
     this.app.use("/api/department", DepartmentRouter);
     this.app.use("/api/contract_attachment", ContractAttachmentRouter);
     this.app.use("/api/user_signature", UserSignatureRouter);
@@ -118,6 +119,7 @@ class App {
     this.app.use("/api/contract", ContractRouter);
     this.app.use("/api/contract_signature", ContractSignatureRouter);
     this.app.use("/api/approval_flow", ApprovalFlowRouter);
+    this.app.use("/api/notifications", notificationRouter);
   }
 
   private listen(): void {
