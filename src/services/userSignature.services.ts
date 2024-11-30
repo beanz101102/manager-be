@@ -24,6 +24,9 @@ class UserSignatureService {
     try {
       const userSignature = await userSignatureRepo.find({
         relations: ["user", "user.department"],
+        order: {
+          createdAt: "DESC",
+        },
       });
       return userSignature;
     } catch (error) {

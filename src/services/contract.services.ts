@@ -446,37 +446,50 @@ class contractService {
           status: "ready_to_sign",
         });
 
-        // Thông báo cho người ký khi hợp đồng sẵn sàng để ký
+        // Xử lý notification bên ngoài transaction
         const signers = await signerRepo.find({
           where: { contract: { id: contractId } },
           relations: ["signer"],
         });
 
-        for (const signer of signers) {
-          if (signer.signer.role !== "customer") {
-            await NotificationService.createNotification(
-              signer.signer,
-              contract,
-              "contract_to_sign",
-              `Hợp đồng ${contract.contractNumber} đã được phê duyệt và sẵn sàng để ký`
-            );
+        setImmediate(async () => {
+          try {
+            for (const signer of signers) {
+              if (signer.signer.role !== "customer") {
+                await NotificationService.createNotification(
+                  signer.signer,
+                  contract,
+                  "contract_to_sign",
+                  `Hợp đồng ${contract.contractNumber} đã được phê duyệt và sẵn sàng để ký`
+                );
+              }
+            }
+          } catch (notificationError) {
+            console.error("Error creating notifications:", notificationError);
           }
-        }
+        });
       } else {
         await transactionalEntityManager.update(Contract, contractId, {
           status: "pending_approval",
         });
 
-        // Thông báo cho người phê duyệt tiếp theo nếu không phải là khách hàng
+        // Xử lý notification cho người phê duyệt tiếp theo bên ngoài transaction
         const nextApprover = templateSteps[currentStepOrder].approver;
-        if (nextApprover.role !== "customer") {
-          await NotificationService.createNotification(
-            nextApprover,
-            contract,
-            "contract_approval",
-            `Bạn có một hợp đồng cần phê duyệt: ${contract.contractNumber}`
-          );
-        }
+
+        setImmediate(async () => {
+          try {
+            if (nextApprover.role !== "customer") {
+              await NotificationService.createNotification(
+                nextApprover,
+                contract,
+                "contract_approval",
+                `Bạn có một hợp đồng cần phê duyệt: ${contract.contractNumber}`
+              );
+            }
+          } catch (notificationError) {
+            console.error("Error creating notification:", notificationError);
+          }
+        });
       }
 
       return {
