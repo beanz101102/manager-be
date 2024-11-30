@@ -15,19 +15,22 @@ mkdir -p ./certbot/conf
 mkdir -p ./certbot/www
 chmod -R 755 ./certbot
 
-# Start nginx
+echo "### Starting nginx ..."
 docker-compose up -d nginx
-echo "### Waiting for nginx to start..."
+echo "### Waiting for nginx to start ..."
 sleep 10
 
-# Test nginx configuration
-docker-compose exec nginx nginx -t
+# Check if nginx is running and listening on port 80
+echo "### Checking nginx status ..."
+docker-compose ps nginx
+docker-compose exec nginx netstat -tulpn | grep :80
 
 # Test the challenge path
-echo "Testing challenge path..."
-curl -I http://phatd.xyz/.well-known/acme-challenge/test
+echo "### Testing challenge path ..."
+curl -v http://localhost/.well-known/acme-challenge/test
 
-# Get staging certificate first
+# Request the certificate
+echo "### Requesting Let's Encrypt certificate ..."
 docker-compose run --rm --entrypoint "\
   certbot certonly --webroot \
     --webroot-path=/var/www/certbot \
@@ -35,10 +38,9 @@ docker-compose run --rm --entrypoint "\
     --agree-tos \
     --no-eff-email \
     --staging \
-    --force-renewal \
     -d ${domains[0]} -d ${domains[1]}" certbot
 
-# If staging successful, get real certificate
+# If staging was successful, request the real certificate
 docker-compose run --rm --entrypoint "\
   certbot certonly --webroot \
     --webroot-path=/var/www/certbot \
@@ -48,11 +50,7 @@ docker-compose run --rm --entrypoint "\
     --force-renewal \
     -d ${domains[0]} -d ${domains[1]}" certbot
 
-# Generate strong DH parameters
-docker-compose run --rm --entrypoint "\
-  openssl dhparam -out /etc/letsencrypt/ssl-dhparams.pem 2048" certbot
-
-echo "### Restarting nginx..."
+echo "### Restarting nginx ..."
 docker-compose restart nginx
 
 # Start all services
