@@ -1,15 +1,10 @@
-import { User } from "../models/user.entity";
+import { In, LessThan, Like } from "typeorm";
 import dataSource from "../database/data-source";
-import { Contract, ContractSigner } from "../models/contract.entity";
-import { Like } from "typeorm";
 import { ApprovalTemplate } from "../models/approval_template.entity";
-import { LessThan } from "typeorm";
 import { ApprovalTemplateStep } from "../models/approval_template_step.entity";
+import { Contract, ContractSigner } from "../models/contract.entity";
 import { ContractApproval } from "../models/contract_approval.entity";
-import EmailService from "../services/email.service";
-import { In } from "typeorm";
-import path from "path";
-import fs from "fs";
+import { User } from "../models/user.entity";
 import NotificationService from "./notification.services";
 let contractRepo = dataSource.getRepository(Contract);
 let signerRepo = dataSource.getRepository(ContractSigner);
@@ -211,6 +206,9 @@ class contractService {
       where: [],
       skip: skip,
       take: limit,
+      order: {
+        createdAt: "DESC" as const,
+      },
     };
 
     if (createdById) {
