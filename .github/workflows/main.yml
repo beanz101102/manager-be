@@ -41,9 +41,8 @@ jobs:
             # Backup important files
             if [ -d certbot ]; then cp -r certbot certbot_backup; fi && \
             
-            # Clean untracked files and reset working directory
+            # Clean untracked files
             git clean -fd && \
-            git checkout -- . && \
             
             # Fetch and reset to match remote
             git fetch origin staging && \
@@ -55,12 +54,48 @@ jobs:
               mv certbot_backup certbot; \
             fi && \
             
-            # Verify nginx config before restart
-            docker-compose up -d nginx && \
-            docker-compose exec -T nginx nginx -t && \
+            # Create temporary HTTP-only nginx config
+            cat > nginx.conf.http << 'EOL'
+            server {
+                listen 80;
+                listen [::]:80;
+                server_name phatd.xyz www.phatd.xyz;
+                
+                location ^~ /.well-known/acme-challenge/ {
+                    allow all;
+                    root /var/www/certbot;
+                    try_files \$uri =404;
+                }
+
+                location / {
+                    proxy_pass http://app:8000;
+                    proxy_http_version 1.1;
+                    proxy_set_header Upgrade \$http_upgrade;
+                    proxy_set_header Connection 'upgrade';
+                    proxy_set_header Host \$host;
+                    proxy_set_header X-Real-IP \$remote_addr;
+                    proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+                    proxy_set_header X-Forwarded-Proto \$scheme;
+                }
+            }
+            EOL
             
-            # If nginx config is valid, restart all services
+            # Use HTTP-only config temporarily
+            mv nginx.conf.http nginx.conf && \
+            
+            # Start services with HTTP config
             docker-compose down && \
-            docker-compose build --no-cache && \
             docker-compose up -d && \
+            
+            # Wait for nginx to start
+            sleep 10 && \
+            
+            # Run certbot
+            ./init-letsencrypt.sh && \
+            
+            # Restore full HTTPS config and restart
+            git checkout nginx.conf && \
+            docker-compose restart nginx && \
+            
+            # Show status
             docker-compose ps"
