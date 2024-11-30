@@ -36,11 +36,10 @@ jobs:
             fi
           }
 
-          # Backup important files and handle uncommitted changes
+          # Deploy to VPS
           ssh_exec "cd $DEPLOY_PATH && \
-            # Backup certbot and any other important directories
+            # Backup certbot directory
             if [ -d certbot ]; then cp -r certbot certbot_backup; fi && \
-            if [ -f nginx.conf ]; then cp nginx.conf nginx.conf.backup; fi && \
             
             # Stash any local changes
             git stash save 'Backup of local changes' || true && \
@@ -49,13 +48,10 @@ jobs:
             git fetch origin staging && \
             git reset --hard origin/staging && \
             
-            # Restore backups
+            # Restore certbot backup
             if [ -d certbot_backup ]; then \
               rm -rf certbot && \
               mv certbot_backup certbot; \
-            fi && \
-            if [ -f nginx.conf.backup ]; then \
-              mv nginx.conf.backup nginx.conf; \
             fi && \
             
             # Rebuild and restart containers
