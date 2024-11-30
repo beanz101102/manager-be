@@ -1,5 +1,4 @@
 import express from "express";
-import cors from "cors";
 import cookieSession from "cookie-session";
 import path from "path";
 import dataSource from "./database/data-source";
@@ -38,15 +37,6 @@ class App {
   private setupMiddlewares(): void {
     this.app.use(express.json());
     this.app.use(express.urlencoded({ extended: true }));
-
-    // CORS configuration
-    this.app.use(cors({
-        origin: true, // Allow all origins
-        credentials: true,
-        methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
-        allowedHeaders: ['Authorization', 'Content-Type', 'X-Requested-With', 'Origin', 'Accept'],
-        exposedHeaders: ['Authorization']
-    }));
 
     this.app.use(
       cookieSession({
