@@ -39,30 +39,30 @@ class App {
     this.app.use(express.json());
     this.app.use(express.urlencoded({ extended: true }));
 
-    // Cho phép tất cả các domain truy cập
-    this.app.use((req, res, next) => {
-      res.setHeader("Access-Control-Allow-Origin", "*");
-      res.setHeader("Access-Control-Allow-Credentials", "true");
-      res.setHeader(
-        "Access-Control-Allow-Methods",
-        "GET,HEAD,PUT,PATCH,POST,DELETE"
-      );
-      res.setHeader(
-        "Access-Control-Allow-Headers",
-        [
-          "Content-Type",
-          "Authorization",
-          "X-Requested-With",
-          "Origin",
-          "Accept",
-        ].join(",")
-      );
+    // CORS configuration
+    const allowedOrigins = [
+        'https://contract-manager-five.vercel.app',
+        'http://localhost:3000',     // React default port
+        'http://localhost:3001',     // Để phòng trường hợp port khác
+        'http://127.0.0.1:3000',
+        'http://127.0.0.1:3001'
+    ];
 
-      if (req.method === "OPTIONS") {
-        return res.sendStatus(204);
-      }
-      next();
-    });
+    this.app.use(cors({
+        origin: function(origin, callback) {
+            // allow requests with no origin (like mobile apps or curl requests)
+            if(!origin) return callback(null, true);
+            
+            if(allowedOrigins.indexOf(origin) === -1){
+                const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
+                return callback(new Error(msg), false);
+            }
+            return callback(null, true);
+        },
+        credentials: true,
+        methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+        allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Origin', 'Accept']
+    }));
 
     this.app.use(
       cookieSession({
