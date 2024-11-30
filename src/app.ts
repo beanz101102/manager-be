@@ -49,32 +49,55 @@ class App {
         'https://phatdat.online'
     ];
 
+    // Add detailed CORS logging middleware
+    this.app.use((req, res, next) => {
+        console.log('Incoming request:', {
+            method: req.method,
+            url: req.url,
+            origin: req.headers.origin,
+            headers: req.headers
+        });
+        next();
+    });
+
     this.app.use(cors({
         origin: function(origin, callback) {
-            // Allow requests with no origin (like mobile apps or curl requests)
-            if(!origin) return callback(null, true);
+            console.log('Request origin:', origin);
             
-            if(allowedOrigins.indexOf(origin) === -1){
-                console.log('Blocked origin:', origin);
+            // Allow requests with no origin (like mobile apps or curl requests)
+            if(!origin) {
+                console.log('No origin, allowing request');
                 return callback(null, true);
             }
+            
+            if(allowedOrigins.indexOf(origin) === -1){
+                console.log('Origin not allowed:', origin);
+                // Instead of returning error, allow all origins during development
+                return callback(null, true);
+            }
+            
+            console.log('Origin allowed:', origin);
             return callback(null, true);
         },
         credentials: true,
-        methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+        methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
         allowedHeaders: ['Authorization', 'Content-Type', 'X-Requested-With', 'Origin', 'Accept'],
-        exposedHeaders: ['Authorization'],
+        exposedHeaders: ['Authorization']
     }));
 
+    // Add response headers middleware
     this.app.use((req, res, next) => {
-        res.header('Access-Control-Allow-Origin', req.headers.origin);
+        res.header('Access-Control-Allow-Origin', req.headers.origin || '*');
         res.header('Access-Control-Allow-Credentials', 'true');
-        res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+        res.header('Access-Control-Allow-Methods', 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS');
         res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
         
-        // Log CORS headers
-        console.log('Origin:', req.headers.origin);
-        console.log('Method:', req.method);
+        // Handle preflight requests
+        if (req.method === 'OPTIONS') {
+            console.log('Handling OPTIONS request');
+            return res.status(200).end();
+        }
+        
         next();
     });
 
