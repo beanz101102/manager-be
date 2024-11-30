@@ -6,6 +6,7 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   OneToMany,
+  JoinColumn,
 } from "typeorm";
 import { User } from "./user.entity";
 import { ApprovalTemplate } from "./approval_template.entity";
@@ -25,6 +26,7 @@ export class Contract {
   // Quan hệ nhiều-một với bảng User (khách hàng)
   // nullable: false -> bắt buộc phải có khách hàng
   @ManyToOne(() => User, { nullable: false })
+  @JoinColumn({ name: "customerId" })
   customer: User;
 
   // Loại hợp đồng, độ dài tối đa 100 ký tự, có thể null
@@ -33,11 +35,13 @@ export class Contract {
 
   // Thêm quan hệ với ApprovalTemplate
   @ManyToOne(() => ApprovalTemplate, { nullable: false })
+  @JoinColumn({ name: "approvalTemplateId" })
   approvalTemplate: ApprovalTemplate;
 
   // Quan hệ nhiều-một với bảng User (người tạo hợp đồng)
   // nullable: false -> bắt buộc phải có người tạo
   @ManyToOne(() => User, { nullable: false })
+  @JoinColumn({ name: "createdById" })
   createdBy: User;
 
   // Thời gian tạo hợp đồng, tự động sinh khi tạo record
@@ -100,11 +104,16 @@ export class ContractSigner {
   id: number;
 
   @ManyToOne(() => Contract, (contract) => contract.signers, {
+    nullable: false,
     onDelete: "CASCADE",
   })
+  @JoinColumn({ name: "contractId" })
   contract: Contract;
 
-  @ManyToOne(() => User)
+  @ManyToOne(() => User, {
+    nullable: false,
+  })
+  @JoinColumn({ name: "signerId" })
   signer: User;
 
   @Column({

@@ -68,8 +68,9 @@ CREATE TABLE contract (
     createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     deletedAt TIMESTAMP NULL,
     updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    status ENUM('draft', 'pending_approval', 'rejected', 'ready_to_sign', 'completed') DEFAULT 'draft',
+    status ENUM('draft', 'pending_approval', 'rejected', 'ready_to_sign', 'completed', 'cancelled') DEFAULT 'draft',
     note TEXT,
+    cancelReason TEXT,
     pdfFilePath VARCHAR(255) NOT NULL,
     FOREIGN KEY (customerId) REFERENCES user(id),
     FOREIGN KEY (approvalTemplateId) REFERENCES approval_template(id),
@@ -106,6 +107,26 @@ CREATE TABLE contract_approval (
     FOREIGN KEY (approverId) REFERENCES user(id)
 );
 
+-- Table for Notification
+CREATE TABLE notification (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    userId INT NOT NULL,
+    contractId INT,
+    type ENUM(
+        'contract_approval',    -- Cần phê duyệt hợp đồng
+        'contract_signed',      -- Hợp đồng đã được ký
+        'contract_rejected',    -- Hợp đồng bị từ chối
+        'contract_modified',    -- Hợp đồng được chỉnh sửa
+        'contract_commented',   -- Hợp đồng có nhận xét mới
+        'contract_to_sign'      -- Cần ký hợp đồng
+    ) NOT NULL,
+    message TEXT NOT NULL,
+    isRead BOOLEAN DEFAULT FALSE,
+    createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (userId) REFERENCES user(id),
+    FOREIGN KEY (contractId) REFERENCES contract(id) ON DELETE CASCADE
+);
+
 -- Thêm indexes để tối ưu truy vấn
 CREATE INDEX idx_contract_number ON contract(contractNumber);
 CREATE INDEX idx_contract_status ON contract(status);
@@ -119,6 +140,13 @@ CREATE INDEX idx_contract_approval_contract_status ON contract_approval(contract
 CREATE INDEX idx_contract_signer_contract_status ON contract_signer(contractId, status);
 CREATE INDEX idx_contract_approval_approver ON contract_approval(approverId);
 CREATE INDEX idx_contract_signer_signer ON contract_signer(signerId);
+
+-- Thêm indexes cho bảng notification
+CREATE INDEX idx_notification_user ON notification(userId);
+CREATE INDEX idx_notification_contract ON notification(contractId);
+CREATE INDEX idx_notification_isread ON notification(isRead);
+CREATE INDEX idx_notification_created ON notification(createdAt);
+CREATE INDEX idx_notification_user_unread ON notification(userId, isRead);
 
 
 
