@@ -39,43 +39,25 @@ class App {
     this.app.use(express.json());
     this.app.use(express.urlencoded({ extended: true }));
 
-    // Danh sách các domain được phép truy cập
-    const allowedOrigins = [
-      "http://localhost:3000",
-      "http://localhost:5173",
-      "https://contract-manager-five.vercel.app",
-    ];
-
-    // Middleware kiểm tra origin trước khi cho phép truy cập
+    // Cho phép tất cả các domain truy cập
     this.app.use((req, res, next) => {
-      console.log("Request Origin:", req.headers.origin);
-      console.log("Request Method:", req.method);
-      console.log("Request Path:", req.path);
+      res.setHeader("Access-Control-Allow-Origin", "*");
+      res.setHeader("Access-Control-Allow-Credentials", "true");
+      res.setHeader(
+        "Access-Control-Allow-Methods",
+        "GET,HEAD,PUT,PATCH,POST,DELETE"
+      );
+      res.setHeader(
+        "Access-Control-Allow-Headers",
+        [
+          "Content-Type",
+          "Authorization",
+          "X-Requested-With",
+          "Origin",
+          "Accept",
+        ].join(",")
+      );
 
-      const origin = req.headers.origin;
-      if (origin && allowedOrigins.includes(origin)) {
-        res.setHeader("Access-Control-Allow-Origin", origin);
-        res.setHeader("Access-Control-Allow-Credentials", "true");
-        res.setHeader(
-          "Access-Control-Allow-Methods",
-          "GET,HEAD,PUT,PATCH,POST,DELETE"
-        );
-        res.setHeader(
-          "Access-Control-Allow-Headers",
-          [
-            "Content-Type",
-            "Authorization",
-            "X-Requested-With",
-            "Origin",
-            "Accept",
-          ].join(",")
-        );
-        console.log("CORS allowed for origin:", origin);
-      } else {
-        console.log("CORS blocked for origin:", origin);
-      }
-
-      // Handle preflight requests
       if (req.method === "OPTIONS") {
         return res.sendStatus(204);
       }
