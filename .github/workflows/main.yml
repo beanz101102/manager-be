@@ -41,6 +41,9 @@ jobs:
             # Backup important files
             if [ -d certbot ]; then cp -r certbot certbot_backup; fi && \
             
+            # Stop all services
+            docker-compose down && \
+            
             # Clean untracked files
             git clean -fd && \
             
@@ -54,38 +57,16 @@ jobs:
               mv certbot_backup certbot; \
             fi && \
             
-            # Create temporary HTTP-only nginx config
-            cat > nginx.conf.http << 'EOL'
-            server {
-                listen 80;
-                listen [::]:80;
-                server_name phatd.xyz www.phatd.xyz;
-                
-                location ^~ /.well-known/acme-challenge/ {
-                    allow all;
-                    root /var/www/certbot;
-                    try_files \$uri =404;
-                }
-
-                location / {
-                    proxy_pass http://app:8000;
-                    proxy_http_version 1.1;
-                    proxy_set_header Upgrade \$http_upgrade;
-                    proxy_set_header Connection 'upgrade';
-                    proxy_set_header Host \$host;
-                    proxy_set_header X-Real-IP \$remote_addr;
-                    proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-                    proxy_set_header X-Forwarded-Proto \$scheme;
-                }
-            }
-            EOL
+            # Start with HTTP only first
+            sed -i 's/listen 443 ssl/#listen 443 ssl/g' nginx.conf && \
+            sed -i 's/listen \[::\]:443 ssl/#listen [::]:443 ssl/g' nginx.conf && \
+            sed -i 's/return 301 https/return 307 http/g' nginx.conf && \
+            sed -i 's/ssl_certificate/#ssl_certificate/g' nginx.conf && \
+            sed -i 's/ssl_certificate_key/#ssl_certificate_key/g' nginx.conf && \
+            sed -i 's/ssl_dhparam/#ssl_dhparam/g' nginx.conf && \
             
-            # Use HTTP-only config temporarily
-            mv nginx.conf.http nginx.conf && \
-            
-            # Start services with HTTP config
-            docker-compose down && \
-            docker-compose up -d && \
+            # Start nginx only first
+            docker-compose up -d nginx && \
             
             # Wait for nginx to start
             sleep 10 && \
@@ -93,9 +74,11 @@ jobs:
             # Run certbot
             ./init-letsencrypt.sh && \
             
-            # Restore full HTTPS config and restart
+            # Restore original nginx config
             git checkout nginx.conf && \
-            docker-compose restart nginx && \
+            
+            # Start all services
+            docker-compose up -d && \
             
             # Show status
             docker-compose ps"
