@@ -42,18 +42,20 @@ class App {
     // CORS configuration
     const allowedOrigins = [
         'https://contract-manager-five.vercel.app',
-        'http://localhost:3000',     // React default port
-        'http://localhost:3001',     // Để phòng trường hợp port khác
+        'http://localhost:3000',
+        'http://localhost:3001',
         'http://127.0.0.1:3000',
-        'http://127.0.0.1:3001'
+        'http://127.0.0.1:3001',
+        'https://phatdat.online'
     ];
 
     this.app.use(cors({
         origin: function(origin, callback) {
-            // allow requests with no origin (like mobile apps or curl requests)
+            // Allow requests with no origin (like mobile apps or curl requests)
             if(!origin) return callback(null, true);
             
             if(allowedOrigins.indexOf(origin) === -1){
+                console.log('Blocked origin:', origin);
                 const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
                 return callback(new Error(msg), false);
             }
@@ -61,8 +63,14 @@ class App {
         },
         credentials: true,
         methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-        allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Origin', 'Accept']
+        allowedHeaders: ['Authorization', 'Content-Type', 'X-Requested-With'],
+        exposedHeaders: ['Authorization'],
     }));
+
+    this.app.use((req, res, next) => {
+        console.log(`${req.method} ${req.url} - Origin: ${req.headers.origin}`);
+        next();
+    });
 
     this.app.use(
       cookieSession({
