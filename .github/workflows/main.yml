@@ -68,6 +68,11 @@ jobs:
             sed -i 's/ssl_certificate_key/#ssl_certificate_key/g' nginx.conf && \
             sed -i 's/ssl_dhparam/#ssl_dhparam/g' nginx.conf && \
             
+            # Generate DH params if not exists
+            if [ ! -f certbot/conf/ssl-dhparams.pem ]; then
+              openssl dhparam -out certbot/conf/ssl-dhparams.pem 2048
+            fi && \
+            
             # Start nginx only first
             docker-compose up -d nginx && \
             

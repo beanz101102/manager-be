@@ -102,6 +102,15 @@ class App {
     this.app.use("/api/contract_signature", ContractSignatureRouter);
     this.app.use("/api/approval_flow", ApprovalFlowRouter);
     this.app.use("/api/notifications", notificationRouter);
+
+    // Add router test
+    this.app.get("/", (req, res) => {
+        res.json({
+            message: "Welcome to Contract Manager API",
+            status: "running",
+            timestamp: new Date().toISOString()
+        });
+    });
   }
 
   private listen(): void {

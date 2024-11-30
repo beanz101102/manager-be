@@ -50,6 +50,10 @@ docker-compose run --rm --entrypoint "\
     --force-renewal \
     -d ${domains[0]} -d ${domains[1]}" certbot
 
+# Generate DH parameters
+echo "### Generating DH parameters ..."
+openssl dhparam -out ./certbot/conf/ssl-dhparams.pem 2048
+
 echo "### Restarting nginx ..."
 docker-compose restart nginx
 
