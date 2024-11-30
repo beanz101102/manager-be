@@ -60,6 +60,9 @@ jobs:
               mv certbot_backup certbot; \
             fi && \
             
+            # Ensure certbot/conf directory exists
+            mkdir -p certbot/conf && \
+            
             # Start with HTTP only first
             sed -i 's/listen 443 ssl/#listen 443 ssl/g' nginx.conf && \
             sed -i 's/listen \[::\]:443 ssl/#listen [::]:443 ssl/g' nginx.conf && \

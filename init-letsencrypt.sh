@@ -50,6 +50,9 @@ docker-compose run --rm --entrypoint "\
     --force-renewal \
     -d ${domains[0]} -d ${domains[1]}" certbot
 
+# Ensure the directory exists before generating DH parameters
+mkdir -p ./certbot/conf
+
 # Generate DH parameters
 echo "### Generating DH parameters ..."
 openssl dhparam -out ./certbot/conf/ssl-dhparams.pem 2048
