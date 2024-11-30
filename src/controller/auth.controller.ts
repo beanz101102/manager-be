@@ -39,13 +39,13 @@ class AuthController {
   }
   static async login(req, res, next) {
     try {
-      let { email, passwordHash } = req.body;
+      let { username, passwordHash } = req.body;
       let user = await userRepo.findOne({
-        where: { email },
+        where: { username },
       });
 
       if (!user || !(await bcrypt.compare(passwordHash, user.passwordHash))) {
-        return next(createError(401, "Wrong email or password"));
+        return next(createError(401, "Wrong username or password"));
       }
       res.status(200).json({
         message: "Login successful",
