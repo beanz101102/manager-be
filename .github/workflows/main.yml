@@ -49,6 +49,7 @@ jobs:
             git reset --hard origin/staging && \
             
             # Start all services
+            docker-compose build && \
             docker-compose up -d && \
             
             # Show status

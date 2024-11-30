@@ -56,19 +56,25 @@ class App {
             
             if(allowedOrigins.indexOf(origin) === -1){
                 console.log('Blocked origin:', origin);
-                const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
-                return callback(new Error(msg), false);
+                return callback(null, true);
             }
             return callback(null, true);
         },
         credentials: true,
         methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-        allowedHeaders: ['Authorization', 'Content-Type', 'X-Requested-With'],
+        allowedHeaders: ['Authorization', 'Content-Type', 'X-Requested-With', 'Origin', 'Accept'],
         exposedHeaders: ['Authorization'],
     }));
 
     this.app.use((req, res, next) => {
-        console.log(`${req.method} ${req.url} - Origin: ${req.headers.origin}`);
+        res.header('Access-Control-Allow-Origin', req.headers.origin);
+        res.header('Access-Control-Allow-Credentials', 'true');
+        res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+        res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+        
+        // Log CORS headers
+        console.log('Origin:', req.headers.origin);
+        console.log('Method:', req.method);
         next();
     });
 
