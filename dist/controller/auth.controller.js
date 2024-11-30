@@ -53,12 +53,12 @@ class AuthController {
     static login(req, res, next) {
         return __awaiter(this, void 0, void 0, function* () {
             try {
-                let { email, passwordHash } = req.body;
+                let { username, passwordHash } = req.body;
                 let user = yield userRepo.findOne({
-                    where: { email },
+                    where: { username },
                 });
                 if (!user || !(yield bcryptjs_1.default.compare(passwordHash, user.passwordHash))) {
-                    return next((0, http_errors_1.default)(401, "Wrong email or password"));
+                    return next((0, http_errors_1.default)(401, "Wrong username or password"));
                 }
                 res.status(200).json({
                     message: "Login successful",

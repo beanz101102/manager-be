@@ -41,26 +41,56 @@ class App {
         // CORS configuration
         const allowedOrigins = [
             'https://contract-manager-five.vercel.app',
-            'http://localhost:3000', // React default port
-            'http://localhost:3001', // Để phòng trường hợp port khác
+            'http://localhost:3000',
+            'http://localhost:3001',
             'http://127.0.0.1:3000',
-            'http://127.0.0.1:3001'
+            'http://127.0.0.1:3001',
+            'https://phatdat.online'
         ];
+        // Add detailed CORS logging middleware
+        this.app.use((req, res, next) => {
+            console.log('Incoming request:', {
+                method: req.method,
+                url: req.url,
+                origin: req.headers.origin,
+                headers: req.headers
+            });
+            next();
+        });
         this.app.use((0, cors_1.default)({
             origin: function (origin, callback) {
-                // allow requests with no origin (like mobile apps or curl requests)
-                if (!origin)
+                console.log('Request origin:', origin);
+                // Allow requests with no origin (like mobile apps or curl requests)
+                if (!origin) {
+                    console.log('No origin, allowing request');
                     return callback(null, true);
-                if (allowedOrigins.indexOf(origin) === -1) {
-                    const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
-                    return callback(new Error(msg), false);
                 }
+                if (allowedOrigins.indexOf(origin) === -1) {
+                    console.log('Origin not allowed:', origin);
+                    // Instead of returning error, allow all origins during development
+                    return callback(null, true);
+                }
+                console.log('Origin allowed:', origin);
                 return callback(null, true);
             },
             credentials: true,
-            methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-            allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Origin', 'Accept']
+            methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+            allowedHeaders: ['Authorization', 'Content-Type', 'X-Requested-With', 'Origin', 'Accept'],
+            exposedHeaders: ['Authorization']
         }));
+        // Add response headers middleware
+        this.app.use((req, res, next) => {
+            res.header('Access-Control-Allow-Origin', req.headers.origin || '*');
+            res.header('Access-Control-Allow-Credentials', 'true');
+            res.header('Access-Control-Allow-Methods', 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS');
+            res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+            // Handle preflight requests
+            if (req.method === 'OPTIONS') {
+                console.log('Handling OPTIONS request');
+                return res.status(200).end();
+            }
+            next();
+        });
         this.app.use((0, cookie_session_1.default)({
             name: "session",
             keys: [this.appConfig.sessionKey],
@@ -93,6 +123,14 @@ class App {
         this.app.use("/api/contract_signature", contractSignature_router_1.default);
         this.app.use("/api/approval_flow", approvalFlow_router_1.default);
         this.app.use("/api/notifications", notification_router_1.default);
+        // Add router test
+        this.app.get("/", (req, res) => {
+            res.json({
+                message: "Welcome to Contract Manager API",
+                status: "running",
+                timestamp: new Date().toISOString()
+            });
+        });
     }
     listen() {
         this.app.listen(this.appConfig.port, '0.0.0.0', () => {
