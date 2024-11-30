@@ -36,29 +36,29 @@ jobs:
             fi
           }
 
-          # Initialize or update repository
+          # Backup important files and handle uncommitted changes
           ssh_exec "cd $DEPLOY_PATH && \
-            (git fetch origin staging || git fetch --all) && \
-            (git checkout staging || git checkout -b staging origin/staging)"
-
-          # Backup certbot directory
-          ssh_exec "cd $DEPLOY_PATH && \
-            if [ -d certbot ]; then \
-              cp -r certbot certbot_backup; \
-            fi"
-
-          # Continue with deployment
-          ssh_exec "cd $DEPLOY_PATH && git pull origin staging"
-
-          # Restore certbot directory
-          ssh_exec "cd $DEPLOY_PATH && \
+            # Backup certbot and any other important directories
+            if [ -d certbot ]; then cp -r certbot certbot_backup; fi && \
+            if [ -f nginx.conf ]; then cp nginx.conf nginx.conf.backup; fi && \
+            
+            # Stash any local changes
+            git stash save 'Backup of local changes' || true && \
+            
+            # Fetch and reset to match remote
+            git fetch origin staging && \
+            git reset --hard origin/staging && \
+            
+            # Restore backups
             if [ -d certbot_backup ]; then \
               rm -rf certbot && \
               mv certbot_backup certbot; \
-            fi"
-
-          # Restart containers
-          ssh_exec "cd $DEPLOY_PATH && \
+            fi && \
+            if [ -f nginx.conf.backup ]; then \
+              mv nginx.conf.backup nginx.conf; \
+            fi && \
+            
+            # Rebuild and restart containers
             docker-compose down && \
             docker-compose build --no-cache && \
             docker-compose up -d && \

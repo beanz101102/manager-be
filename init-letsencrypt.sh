@@ -13,13 +13,21 @@ sleep 2
 rm -rf ./certbot
 mkdir -p ./certbot/conf
 mkdir -p ./certbot/www
+chmod -R 755 ./certbot
 
 # Start nginx
 docker-compose up -d nginx
 echo "### Waiting for nginx to start..."
-sleep 5
+sleep 10
 
-# Get certificate
+# Test nginx configuration
+docker-compose exec nginx nginx -t
+
+# Test the challenge path
+echo "Testing challenge path..."
+curl -I http://phatd.xyz/.well-known/acme-challenge/test
+
+# Get staging certificate first
 docker-compose run --rm --entrypoint "\
   certbot certonly --webroot \
     --webroot-path=/var/www/certbot \
@@ -27,9 +35,10 @@ docker-compose run --rm --entrypoint "\
     --agree-tos \
     --no-eff-email \
     --staging \
+    --force-renewal \
     -d ${domains[0]} -d ${domains[1]}" certbot
 
-# Once staging succeeds, get real certificate
+# If staging successful, get real certificate
 docker-compose run --rm --entrypoint "\
   certbot certonly --webroot \
     --webroot-path=/var/www/certbot \
