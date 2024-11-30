@@ -5,49 +5,46 @@ rsa_key_size=4096
 data_path="./certbot"
 email="thaisieupham7@gmail.com"
 
-# Dừng các container đang chạy
+# Stop and remove all containers
 docker-compose down
+sleep 2
 
-# Xóa các chứng chỉ cũ nếu có
-rm -rf ./certbot/conf/*
-rm -rf ./certbot/www/*
-
-# Tạo thư mục certbot với đầy đủ cấu trúc
-mkdir -p ./certbot/conf/live/phatd.xyz
+# Remove old certificates
+rm -rf ./certbot
+mkdir -p ./certbot/conf
 mkdir -p ./certbot/www
 
-# Tạo dummy certificate
-docker-compose run --rm --entrypoint "\
-  openssl req -x509 -nodes -newkey rsa:1024 -days 1\
-    -keyout '/etc/letsencrypt/live/phatd.xyz/privkey.pem' \
-    -out '/etc/letsencrypt/live/phatd.xyz/fullchain.pem' \
-    -subj '/CN=localhost'" certbot
-
-echo "### Starting nginx ..."
-docker-compose up --force-recreate -d nginx
-echo "### Waiting for nginx ..."
+# Start nginx
+docker-compose up -d nginx
+echo "### Waiting for nginx to start..."
 sleep 5
 
-# Xóa dummy certificate
+# Get certificate
 docker-compose run --rm --entrypoint "\
-  rm -Rf /etc/letsencrypt/live/phatd.xyz && \
-  rm -Rf /etc/letsencrypt/archive/phatd.xyz && \
-  rm -Rf /etc/letsencrypt/renewal/phatd.xyz.conf" certbot
-
-echo "### Requesting Let's Encrypt certificate for ${domains[*]} ..."
-
-# Sử dụng staging environment cho test
-docker-compose run --rm --entrypoint "\
-  certbot certonly --webroot -w /var/www/certbot \
+  certbot certonly --webroot \
+    --webroot-path=/var/www/certbot \
+    --email $email \
+    --agree-tos \
+    --no-eff-email \
     --staging \
-    --email ${email} \
+    -d ${domains[0]} -d ${domains[1]}" certbot
+
+# Once staging succeeds, get real certificate
+docker-compose run --rm --entrypoint "\
+  certbot certonly --webroot \
+    --webroot-path=/var/www/certbot \
+    --email $email \
     --agree-tos \
     --no-eff-email \
     --force-renewal \
     -d ${domains[0]} -d ${domains[1]}" certbot
 
-echo "### Reloading nginx ..."
-docker-compose exec nginx nginx -s reload
+# Generate strong DH parameters
+docker-compose run --rm --entrypoint "\
+  openssl dhparam -out /etc/letsencrypt/ssl-dhparams.pem 2048" certbot
 
-# Khởi động lại tất cả các services
+echo "### Restarting nginx..."
+docker-compose restart nginx
+
+# Start all services
 docker-compose up -d
