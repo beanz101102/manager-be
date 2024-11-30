@@ -38,9 +38,6 @@ jobs:
 
           # Deploy to VPS
           ssh_exec "cd $DEPLOY_PATH && \
-            # Backup important files
-            if [ -d certbot ]; then cp -r certbot certbot_backup; fi && \
-            
             # Stop all services
             docker-compose down && \
             
@@ -50,43 +47,6 @@ jobs:
             # Fetch and reset to match remote
             git fetch origin staging && \
             git reset --hard origin/staging && \
-            
-            # Make init-letsencrypt.sh executable
-            chmod +x init-letsencrypt.sh && \
-            
-            # Restore certbot backup
-            if [ -d certbot_backup ]; then \
-              rm -rf certbot && \
-              mv certbot_backup certbot; \
-            fi && \
-            
-            # Ensure certbot/conf directory exists
-            mkdir -p certbot/conf && \
-            
-            # Start with HTTP only first
-            sed -i 's/listen 443 ssl/#listen 443 ssl/g' nginx.conf && \
-            sed -i 's/listen \[::\]:443 ssl/#listen [::]:443 ssl/g' nginx.conf && \
-            sed -i 's/return 301 https/return 307 http/g' nginx.conf && \
-            sed -i 's/ssl_certificate/#ssl_certificate/g' nginx.conf && \
-            sed -i 's/ssl_certificate_key/#ssl_certificate_key/g' nginx.conf && \
-            sed -i 's/ssl_dhparam/#ssl_dhparam/g' nginx.conf && \
-            
-            # Generate DH params if not exists
-            if [ ! -f certbot/conf/ssl-dhparams.pem ]; then
-              openssl dhparam -out certbot/conf/ssl-dhparams.pem 2048
-            fi && \
-            
-            # Start nginx only first
-            docker-compose up -d nginx && \
-            
-            # Wait for nginx to start
-            sleep 10 && \
-            
-            # Run certbot
-            ./init-letsencrypt.sh && \
-            
-            # Restore original nginx config
-            git checkout nginx.conf && \
             
             # Start all services
             docker-compose up -d && \
