@@ -53,11 +53,17 @@ jobs:
             docker-compose rm -f && \
             docker rmi \$(docker images -q 'manager-be_app') || true && \
             
-            echo 'Rebuilding application...' && \
-            docker-compose build --no-cache app && \
+            echo 'Rebuilding and starting application...' && \
+            docker-compose up -d --build app && \
+            
+            echo 'Waiting for container to be ready...' && \
+            sleep 10 && \
             
             echo 'Building dist folder...' && \
             docker exec node_app npm run build && \
             
-            echo 'Starting services...' && \
+            echo 'Restarting application...' && \
+            docker-compose restart app && \
+            
+            echo 'Starting remaining services...' && \
             docker-compose up -d"
