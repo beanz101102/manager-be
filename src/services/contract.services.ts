@@ -865,6 +865,355 @@ class contractService {
       },
     };
   }
+
+  static async getCancelledContractsInTimeRange(
+    startTime: number,
+    endTime: number
+  ) {
+    // Convert seconds to Date objects
+    const startDate = new Date(startTime * 1000);
+    const endDate = new Date(endTime * 1000);
+
+    // Query cancelled contracts within the time range
+    const cancelledContracts = await contractRepo
+      .createQueryBuilder("contract")
+      .where("contract.status = :status", { status: "cancelled" })
+      .andWhere("contract.updatedAt >= :startDate", { startDate })
+      .andWhere("contract.updatedAt <= :endDate", { endDate })
+      .getMany();
+
+    return {
+      total: cancelledContracts.length,
+      timeRange: {
+        start: startDate,
+        end: endDate,
+      },
+      contracts: cancelledContracts.map((contract) => ({
+        id: contract.id,
+        contractNumber: contract.contractNumber,
+        cancelReason: contract.cancelReason,
+        cancelledAt: contract.updatedAt,
+      })),
+    };
+  }
+
+  static async getContractsInTimeRange(
+    startTime: number,
+    endTime: number,
+    status: string
+  ) {
+    // Validate status
+    const validStatuses = [
+      "draft",
+      "pending_approval",
+      "rejected",
+      "ready_to_sign",
+      "completed",
+      "cancelled",
+    ];
+
+    if (!validStatuses.includes(status)) {
+      throw new Error(
+        `Invalid status. Must be one of: ${validStatuses.join(", ")}`
+      );
+    }
+
+    // Query contracts within the time range with specified status
+    const contracts = await contractRepo
+      .createQueryBuilder("contract")
+      .leftJoinAndSelect("contract.customer", "customer")
+      .leftJoinAndSelect("contract.createdBy", "createdBy")
+      .where("contract.status = :status", { status })
+      .andWhere("contract.createdAt BETWEEN :startDate AND :endDate", {
+        startDate: new Date(startTime).toISOString(),
+        endDate: new Date(endTime).toISOString(),
+      })
+      .getMany();
+
+    return {
+      total: contracts.length,
+      timeRange: {
+        start: new Date(startTime),
+        end: new Date(endTime),
+      },
+      contracts: contracts.map((contract) => ({
+        id: contract.id,
+        contractNumber: contract.contractNumber,
+        status: contract.status,
+        customer: {
+          id: contract.customer.id,
+          name: contract.customer.fullName,
+        },
+        createdBy: {
+          id: contract.createdBy.id,
+          name: contract.createdBy.fullName,
+        },
+        updatedAt: contract.updatedAt,
+        cancelReason: contract.cancelReason,
+        note: contract.note,
+      })),
+    };
+  }
+
+  static async getCustomerContractReport() {
+    const report = await contractRepo
+      .createQueryBuilder("contract")
+      .leftJoin("contract.customer", "customer")
+      .select([
+        "customer.id as customerId",
+        "customer.fullName as customerName",
+        "COUNT(contract.id) as totalContracts",
+        `COUNT(CASE WHEN contract.status = 'cancelled' THEN 1 END) as cancelledContracts`,
+        `COUNT(CASE WHEN contract.status = 'completed' THEN 1 END) as completedContracts`,
+        `COUNT(CASE WHEN contract.status = 'draft' THEN 1 END) as draftContracts`,
+        `COUNT(CASE WHEN contract.status = 'pending_approval' THEN 1 END) as pendingContracts`,
+        `COUNT(CASE WHEN contract.status = 'ready_to_sign' THEN 1 END) as readyToSignContracts`,
+        `COUNT(CASE WHEN contract.status = 'rejected' THEN 1 END) as rejectedContracts`,
+      ])
+      .groupBy("customer.id")
+      .addGroupBy("customer.fullName")
+      .getRawMany();
+
+    // Tính toán tỷ lệ phần trăm và format lại dữ liệu
+    const formattedReport = report.map((customer) => ({
+      customerId: customer.customerId,
+      customerName: customer.customerName,
+      statistics: {
+        total: parseInt(customer.totalContracts),
+        draft: {
+          count: parseInt(customer.draftContracts),
+          percentage: (
+            (parseInt(customer.draftContracts) /
+              parseInt(customer.totalContracts)) *
+            100
+          ).toFixed(1),
+        },
+        pending: {
+          count: parseInt(customer.pendingContracts),
+          percentage: (
+            (parseInt(customer.pendingContracts) /
+              parseInt(customer.totalContracts)) *
+            100
+          ).toFixed(1),
+        },
+        readyToSign: {
+          count: parseInt(customer.readyToSignContracts),
+          percentage: (
+            (parseInt(customer.readyToSignContracts) /
+              parseInt(customer.totalContracts)) *
+            100
+          ).toFixed(1),
+        },
+        cancelled: {
+          count: parseInt(customer.cancelledContracts),
+          percentage: (
+            (parseInt(customer.cancelledContracts) /
+              parseInt(customer.totalContracts)) *
+            100
+          ).toFixed(1),
+        },
+        completed: {
+          count: parseInt(customer.completedContracts),
+          percentage: (
+            (parseInt(customer.completedContracts) /
+              parseInt(customer.totalContracts)) *
+            100
+          ).toFixed(1),
+        },
+        rejected: {
+          count: parseInt(customer.rejectedContracts),
+          percentage: (
+            (parseInt(customer.rejectedContracts) /
+              parseInt(customer.totalContracts)) *
+            100
+          ).toFixed(1),
+        },
+      },
+    }));
+
+    // Tính tổng số liệu
+    const totals = formattedReport.reduce(
+      (acc, curr) => {
+        acc.totalContracts += curr.statistics.total;
+        acc.totalDraft += curr.statistics.draft.count;
+        acc.totalPending += curr.statistics.pending.count;
+        acc.totalReadyToSign += curr.statistics.readyToSign.count;
+        acc.totalCancelled += curr.statistics.cancelled.count;
+        acc.totalCompleted += curr.statistics.completed.count;
+        acc.totalRejected += curr.statistics.rejected.count;
+        return acc;
+      },
+      {
+        totalContracts: 0,
+        totalDraft: 0,
+        totalPending: 0,
+        totalReadyToSign: 0,
+        totalCancelled: 0,
+        totalCompleted: 0,
+        totalRejected: 0,
+      }
+    );
+
+    return {
+      customers: formattedReport,
+      summary: {
+        totalCustomers: formattedReport.length,
+        totalContracts: totals.totalContracts,
+        draft: {
+          count: totals.totalDraft,
+          percentage: (
+            (totals.totalDraft / totals.totalContracts) *
+            100
+          ).toFixed(1),
+        },
+        pending: {
+          count: totals.totalPending,
+          percentage: (
+            (totals.totalPending / totals.totalContracts) *
+            100
+          ).toFixed(1),
+        },
+        readyToSign: {
+          count: totals.totalReadyToSign,
+          percentage: (
+            (totals.totalReadyToSign / totals.totalContracts) *
+            100
+          ).toFixed(1),
+        },
+        cancelled: {
+          count: totals.totalCancelled,
+          percentage: (
+            (totals.totalCancelled / totals.totalContracts) *
+            100
+          ).toFixed(1),
+        },
+        completed: {
+          count: totals.totalCompleted,
+          percentage: (
+            (totals.totalCompleted / totals.totalContracts) *
+            100
+          ).toFixed(1),
+        },
+        rejected: {
+          count: totals.totalRejected,
+          percentage: (
+            (totals.totalRejected / totals.totalContracts) *
+            100
+          ).toFixed(1),
+        },
+      },
+    };
+  }
+
+  static async getAdvancedStatistics({
+    startTime,
+    endTime,
+    status,
+    createdById,
+    customerId,
+  }: {
+    startTime?: number;
+    endTime?: number;
+    status?: string;
+    createdById?: number;
+    customerId?: number;
+  }) {
+    const queryBuilder = contractRepo
+      .createQueryBuilder("contract")
+      .leftJoin("contract.customer", "customer")
+      .leftJoin("contract.createdBy", "creator");
+
+    // Áp dụng các điều kiện filter
+    if (startTime) {
+      queryBuilder.andWhere("contract.createdAt >= :startDate", {
+        startDate: new Date(startTime * 1000),
+      });
+    }
+
+    if (endTime) {
+      queryBuilder.andWhere("contract.createdAt <= :endDate", {
+        endDate: new Date(endTime * 1000),
+      });
+    }
+
+    if (status) {
+      queryBuilder.andWhere("contract.status = :status", { status });
+    }
+
+    if (createdById) {
+      queryBuilder.andWhere("creator.id = :createdById", { createdById });
+    }
+
+    if (customerId) {
+      queryBuilder.andWhere("customer.id = :customerId", { customerId });
+    }
+
+    // Thống kê theo trạng thái
+    const statusStats = await queryBuilder
+      .select("contract.status", "status")
+      .addSelect("COUNT(contract.id)", "count")
+      .groupBy("contract.status")
+      .getRawMany();
+
+    // Thống kê theo tháng
+    const monthlyStats = await queryBuilder
+      .select("DATE_FORMAT(contract.createdAt, '%Y-%m')", "month")
+      .addSelect("COUNT(contract.id)", "count")
+      .groupBy("month")
+      .orderBy("month", "DESC")
+      .limit(12)
+      .getRawMany();
+
+    // Nếu có cả createdById và customerId, thống kê chi tiết mối quan hệ
+    let creatorCustomerStats = [];
+    if (createdById && customerId) {
+      creatorCustomerStats = await queryBuilder
+        .select("contract.status", "status")
+        .addSelect("COUNT(contract.id)", "count")
+        .where("creator.id = :createdById", { createdById })
+        .andWhere("customer.id = :customerId", { customerId })
+        .groupBy("contract.status")
+        .getRawMany();
+    }
+
+    // Format kết quả
+    const result = {
+      summary: {
+        total: statusStats.reduce((sum, item) => sum + parseInt(item.count), 0),
+        byStatus: statusStats.reduce((acc, item) => {
+          acc[item.status] = parseInt(item.count);
+          return acc;
+        }, {}),
+      },
+      monthlyTrend: monthlyStats.map((item) => ({
+        month: item.month,
+        count: parseInt(item.count),
+      })),
+      timeRange:
+        startTime && endTime
+          ? {
+              start: new Date(startTime * 1000),
+              end: new Date(endTime * 1000),
+            }
+          : null,
+    };
+
+    // Thêm thống kê về mối quan hệ người tạo - khách hàng nếu có
+    if (createdById && customerId) {
+      result["creatorCustomerRelationship"] = {
+        total: creatorCustomerStats.reduce(
+          (sum, item) => sum + parseInt(item.count),
+          0
+        ),
+        byStatus: creatorCustomerStats.reduce((acc, item) => {
+          acc[item.status] = parseInt(item.count);
+          return acc;
+        }, {}),
+      };
+    }
+
+    return result;
+  }
 }
 
 export default contractService;

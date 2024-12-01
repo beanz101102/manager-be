@@ -534,6 +534,134 @@ class contractController {
       });
     }
   }
+  async getCancelledContractsInTimeRange(req, res) {
+    try {
+      const { startTime, endTime } = req.query;
+
+      // Validate input
+      if (!startTime || !endTime) {
+        return res.status(400).json({
+          success: false,
+          message: "Both startTime and endTime are required (in seconds)",
+        });
+      }
+
+      // Convert to numbers and validate
+      const start = Number(startTime);
+      const end = Number(endTime);
+
+      if (isNaN(start) || isNaN(end)) {
+        return res.status(400).json({
+          success: false,
+          message: "startTime and endTime must be valid numbers",
+        });
+      }
+
+      if (end < start) {
+        return res.status(400).json({
+          success: false,
+          message: "endTime must be greater than startTime",
+        });
+      }
+
+      const result = await contractService.getCancelledContractsInTimeRange(
+        start,
+        end
+      );
+
+      return res.status(200).json({
+        success: true,
+        data: result,
+      });
+    } catch (e) {
+      return res.status(500).json({
+        success: false,
+        message: e.message,
+      });
+    }
+  }
+  async getContractsInTimeRange(req, res) {
+    try {
+      const { startTime, endTime, status } = req.query;
+
+      // Validate input
+      if (!startTime || !endTime || !status) {
+        return res.status(400).json({
+          success: false,
+          message: "startTime, endTime (in seconds) and status are required",
+        });
+      }
+
+      // Convert to numbers and validate
+      const start = Number(startTime);
+      const end = Number(endTime);
+
+      if (isNaN(start) || isNaN(end)) {
+        return res.status(400).json({
+          success: false,
+          message: "startTime and endTime must be valid numbers",
+        });
+      }
+
+      if (end < start) {
+        return res.status(400).json({
+          success: false,
+          message: "endTime must be greater than startTime",
+        });
+      }
+
+      const result = await contractService.getContractsInTimeRange(
+        start,
+        end,
+        status as string
+      );
+
+      return res.status(200).json({
+        success: true,
+        data: result,
+      });
+    } catch (e) {
+      return res.status(500).json({
+        success: false,
+        message: e.message,
+      });
+    }
+  }
+  async getCustomerContractReport(req, res) {
+    try {
+      const report = await contractService.getCustomerContractReport();
+
+      return res.status(200).json({
+        success: true,
+        data: report,
+      });
+    } catch (e) {
+      return res.status(500).json({
+        success: false,
+        message: e.message,
+      });
+    }
+  }
+  async getAdvancedStatistics(req, res) {
+    try {
+      const { startTime, endTime, status, createdById, customerId } = req.query;
+
+      const result = await contractService.getAdvancedStatistics({
+        startTime: startTime ? Number(startTime) : undefined,
+        endTime: endTime ? Number(endTime) : undefined,
+        status,
+        createdById: createdById ? Number(createdById) : undefined,
+        customerId: customerId ? Number(customerId) : undefined,
+      });
+
+      return res.status(200).json(result);
+    } catch (e) {
+      return res.status(500).json({
+        success: false,
+        message: e.message,
+      });
+    }
+  }
 }
 
 export default contractController;

@@ -57,5 +57,13 @@ ContractRouter.post(
 ContractRouter.post("/submit", contractController.submitForApproval);
 ContractRouter.post("/cancel", contractController.cancelContracts);
 ContractRouter.get("/statistics", contractController.getContractStatistics);
+ContractRouter.get(
+  "/customer-report",
+  contractController.getCustomerContractReport
+);
+ContractRouter.get(
+  "/contracts-in-range",
+  contractController.getContractsInTimeRange
+);
 
 export default ContractRouter;
