@@ -38,12 +38,21 @@ class App {
   private setupMiddlewares(): void {
     this.app.use(
       cors({
-        origin: "*",
+        origin: true,
         methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-        allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
+        allowedHeaders: [
+          "Content-Type",
+          "Authorization",
+          "X-Requested-With",
+          "Accept",
+        ],
+        exposedHeaders: ["Content-Range", "X-Content-Range"],
         credentials: true,
+        maxAge: 86400,
       })
     );
+
+    this.app.options("*", cors());
 
     this.app.use(express.json());
     this.app.use(express.urlencoded({ extended: true }));
