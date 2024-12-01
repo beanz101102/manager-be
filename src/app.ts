@@ -1,5 +1,4 @@
 import express from "express";
-import cors from "cors";
 import cookieSession from "cookie-session";
 import path from "path";
 import dataSource from "./database/data-source";
@@ -39,56 +38,13 @@ class App {
     this.app.use(express.json());
     this.app.use(express.urlencoded({ extended: true }));
 
-    const allowedOrigins = [
-      "http://localhost:3000",
-      "http://localhost:5173",
-      "https://contract-manager-five.vercel.app",
-    ];
-
-    const corsOptions = {
-      origin: (
-        origin: string | undefined,
-        callback: (err: Error | null, origin?: boolean | string) => void
-      ) => {
-        if (!origin || allowedOrigins.includes(origin)) {
-          callback(null, true);
-        } else {
-          console.log(`Blocked request from unauthorized domain: ${origin}`);
-          callback(new Error("Not allowed by CORS"));
-        }
-      },
-      credentials: true,
-      methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-      allowedHeaders: [
-        "Content-Type",
-        "Authorization",
-        "X-Requested-With",
-        "Origin",
-        "Accept",
-        "Accept-Language",
-        "Content-Language",
-        "Access-Control-Allow-Headers",
-        "Access-Control-Allow-Origin",
-        "Access-Control-Allow-Credentials",
-        "Access-Control-Allow-Methods",
-        "X-Auth-Token",
-      ],
-      exposedHeaders: [
-        "Access-Control-Allow-Origin",
-        "Access-Control-Allow-Credentials",
-      ],
-      maxAge: 86400,
-    };
-
-    this.app.use(cors(corsOptions));
-
     this.app.use(
       cookieSession({
         name: "session",
         keys: [this.appConfig.sessionKey],
         maxAge: this.appConfig.sessionMaxAge,
-        secure: false,
-        sameSite: "lax",
+        secure: true,
+        sameSite: 'none',
       })
     );
 
