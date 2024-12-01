@@ -65,5 +65,9 @@ ContractRouter.get(
   "/contracts-in-range",
   contractController.getContractsInTimeRange
 );
+ContractRouter.get(
+  "/advanced-statistics",
+  contractController.getAdvancedStatistics
+);
 
 export default ContractRouter;

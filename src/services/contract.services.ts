@@ -1126,13 +1126,13 @@ class contractService {
     // Áp dụng các điều kiện filter
     if (startTime) {
       queryBuilder.andWhere("contract.createdAt >= :startDate", {
-        startDate: new Date(startTime * 1000),
+        startDate: new Date(startTime).toISOString(),
       });
     }
 
     if (endTime) {
       queryBuilder.andWhere("contract.createdAt <= :endDate", {
-        endDate: new Date(endTime * 1000),
+        endDate: new Date(endTime).toISOString(),
       });
     }
 
