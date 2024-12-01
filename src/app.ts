@@ -14,6 +14,7 @@ import UserSignatureRouter from "./routers/userSignature.router";
 import ContractSignatureRouter from "./routers/contractSignature.router";
 import ApprovalFlowRouter from "./routers/approvalFlow.router";
 import notificationRouter from "./routers/notification.router";
+import cors from "cors";
 
 class App {
   private app: express.Application = express();
@@ -35,6 +36,15 @@ class App {
         this.app.use(express.static(path.join(__dirname, 'FileName'), { maxAge:  this.appConfig.expiredStaticFiles}));
     } */
   private setupMiddlewares(): void {
+    this.app.use(
+      cors({
+        origin: "*",
+        methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+        allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
+        credentials: true,
+      })
+    );
+
     this.app.use(express.json());
     this.app.use(express.urlencoded({ extended: true }));
 
@@ -79,16 +89,16 @@ class App {
 
     // Add router test
     this.app.get("/", (req, res) => {
-        res.json({
-            message: "Welcome to Contract Manager API",
-            status: "running",
-            timestamp: new Date().toISOString()
-        });
+      res.json({
+        message: "Welcome to Contract Manager API",
+        status: "running",
+        timestamp: new Date().toISOString(),
+      });
     });
   }
 
   private listen(): void {
-    this.app.listen(this.appConfig.port, '0.0.0.0', () => {
+    this.app.listen(this.appConfig.port, "0.0.0.0", () => {
       console.log(`server started at http://0.0.0.0:${this.appConfig.port}`);
     });
   }
