@@ -43,7 +43,6 @@ jobs:
             
             echo 'Cleaning workspace...' && \
             git clean -fd && \
-            rm -rf dist/ && \
             
             echo 'Updating source code...' && \
             git fetch origin staging && \
@@ -57,13 +56,4 @@ jobs:
             docker-compose build --no-cache app && \
             
             echo 'Starting services...' && \
-            docker-compose up -d && \
-            
-            echo 'Waiting for app to start...' && \
-            sleep 10 && \
-            
-            echo 'Checking container status...' && \
-            docker-compose ps && \
-            
-            echo 'Checking app logs...' && \
-            docker-compose logs --tail=50 app"
+            docker-compose up -d"
