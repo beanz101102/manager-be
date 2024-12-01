@@ -6,7 +6,7 @@ WORKDIR /usr/src/app
 # Copy package files
 COPY package*.json ./
 
-# Install dependencies including dev dependencies for build
+# Install ALL dependencies including dev dependencies
 RUN npm install --legacy-peer-deps && \
     npm install -g typescript rimraf npm-run-all
 
