@@ -14,9 +14,9 @@ RUN npm install --legacy-peer-deps && \
 COPY . .
 
 # Clean and rebuild
-RUN npm run build
+RUN rm -rf dist/ && \
+    npm run build
 
 EXPOSE 8000
 
-# Use production start command
 CMD ["npm", "start"]

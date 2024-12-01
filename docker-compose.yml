@@ -54,9 +54,8 @@ services:
     networks:
       - app-network
     volumes:
-      - .:/usr/src/app
-      - /usr/src/app/node_modules
       - ./uploads:/usr/src/app/uploads
+      - /usr/src/app/node_modules
 
   nginx:
     image: nginx:alpine

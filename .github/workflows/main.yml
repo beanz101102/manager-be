@@ -43,6 +43,7 @@ jobs:
             
             echo 'Cleaning workspace...' && \
             git clean -fd && \
+            rm -rf dist/ && \
             
             echo 'Updating source code...' && \
             git fetch origin staging && \
@@ -54,6 +55,9 @@ jobs:
             
             echo 'Rebuilding application...' && \
             docker-compose build --no-cache app && \
+            
+            echo 'Building dist folder...' && \
+            docker exec node_app npm run build && \
             
             echo 'Starting services...' && \
             docker-compose up -d"
