@@ -41,16 +41,21 @@ jobs:
             # Stop all services
             docker-compose down && \
             
-            # Clean untracked files
+            # Clean untracked files and dist directory
             git clean -fd && \
+            rm -rf dist/ && \
             
             # Fetch and reset to match remote
             git fetch origin staging && \
             git reset --hard origin/staging && \
             
-            # Start all services
-            docker-compose build && \
+            # Remove all images and volumes (optional, uncomment if needed)
+            # docker system prune -af && \
+            # docker volume prune -f && \
+            
+            # Rebuild and start services
+            docker-compose build --no-cache app && \
             docker-compose up -d && \
             
-            # Show status
+            # Show status and logs
             docker-compose ps"
