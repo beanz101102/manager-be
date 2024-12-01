@@ -1,25 +1,22 @@
 # Dockerfile
-# Sử dụng Node.js làm base image
 FROM node:18-alpine
 
-# Thiết lập thư mục làm việc
 WORKDIR /usr/src/app
 
-# Sao chép package.json và package-lock.json
+# Copy package files
 COPY package*.json ./
 
-# Cài đặt các phụ thuộc
+# Install dependencies including dev dependencies for build
 RUN npm install --legacy-peer-deps && \
-    npm install -g typescript
+    npm install -g typescript rimraf npm-run-all
 
-# Sao chép toàn bộ mã nguồn vào container
+# Copy source code
 COPY . .
 
-# Biên dịch TypeScript
+# Clean and rebuild
 RUN npm run build
 
-# Mở cổng mà ứng dụng sẽ chạy
 EXPOSE 8000
 
-# Lệnh để chạy ứng dụng
-CMD ["npm", "run", "dev"]
+# Use production start command
+CMD ["npm", "start"]
