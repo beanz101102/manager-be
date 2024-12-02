@@ -3,18 +3,18 @@ version: "3.8"
 services:
   db:
     image: mysql:8.0
-    container_name: mysql_db
+    container_name: contract_manager_db
     command: --default-authentication-plugin=mysql_native_password
     restart: always
     environment:
       MYSQL_ROOT_PASSWORD: root
       MYSQL_DATABASE: Project
-    ports:
-      - "3306:3306"
+    expose:
+      - "3306"
     volumes:
       - mysql_data:/var/lib/mysql
     networks:
-      - app-network
+      - contract-network
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
       interval: 10s
@@ -23,25 +23,26 @@ services:
 
   phpmyadmin:
     image: phpmyadmin/phpmyadmin
-    container_name: phpmyadmin
+    container_name: contract_manager_phpmyadmin
     restart: always
     environment:
       PMA_HOST: db
       PMA_USER: root
       PMA_PASSWORD: root
-    ports:
-      - "8080:80"
+    expose:
+      - "80"
     depends_on:
       - db
     networks:
-      - app-network
+      - contract-network
+      - nginx-proxy
 
   app:
     build: .
-    container_name: node_app
+    container_name: contract_manager_app
     restart: always
-    ports:
-      - "8000:8000"
+    expose:
+      - "8000"
     depends_on:
       db:
         condition: service_healthy
@@ -52,30 +53,28 @@ services:
       - DB_NAME=Project
       - NODE_ENV=production
     networks:
-      - app-network
+      - contract-network
+      - nginx-proxy
     volumes:
       - ./uploads:/usr/src/app/uploads
       - /usr/src/app/node_modules
 
   nginx:
     image: nginx:alpine
-    container_name: nginx
+    container_name: contract_manager_nginx
     restart: unless-stopped
-    ports:
-      - "80:80"
-      - "443:443"
+    expose:
+      - "80"
     volumes:
       - ./nginx.conf:/etc/nginx/conf.d/default.conf
-      - ./uploads:/usr/src/app/uploads
-      - ./ssl:/etc/ssl:ro
-    depends_on:
-      - app
-    networks:
-      - app-network
+      - ./uploads:/usr/src/app/
 
 volumes:
   mysql_data:
 
 networks:
-  app-network:
+  contract-network:
+    name: contract_manager_network
     driver: bridge
+  nginx-proxy:
+    external: true
