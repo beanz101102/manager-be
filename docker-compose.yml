@@ -67,7 +67,12 @@ services:
       - "80"
     volumes:
       - ./nginx.conf:/etc/nginx/conf.d/default.conf
-      - ./uploads:/usr/src/app/
+      - ./uploads:/usr/src/app/uploads
+    depends_on:
+      - app
+    networks:
+      - contract-network
+      - nginx-proxy
 
 volumes:
   mysql_data:
