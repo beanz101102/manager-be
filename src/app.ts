@@ -36,6 +36,14 @@ class App {
         this.app.use(express.static(path.join(__dirname, 'FileName'), { maxAge:  this.appConfig.expiredStaticFiles}));
     } */
   private setupMiddlewares(): void {
+    this.app.use(cors({
+      origin: ['http://localhost:3000', 'https://app.phatdat.online'],
+      credentials: true, 
+      methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+      allowedHeaders: ['Authorization', 'Content-Type', 'Accept', 'Origin', 'User-Agent', 'X-Requested-With'],
+      exposedHeaders: ['Set-Cookie']
+    }));
+
     this.app.use(express.json());
     this.app.use(express.urlencoded({ extended: true }));
 
@@ -46,6 +54,7 @@ class App {
         maxAge: this.appConfig.sessionMaxAge,
         secure: true,
         sameSite: 'none',
+        httpOnly: true
       })
     );
 
@@ -67,13 +76,6 @@ class App {
         queueLimit: 0,
       },
     });
-
-    this.app.use(cors({
-      origin: ['http://localhost:3000', 'https://app.phatdat.online'],
-      credentials: true,
-      methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-      allowedHeaders: ['Authorization', 'Content-Type', 'Accept', 'Origin', 'User-Agent']
-    }));
 
     this.app.use("/api/auth", AuthRouter);
     this.app.use("/api/department", DepartmentRouter);
