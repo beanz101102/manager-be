@@ -1,4 +1,5 @@
 import express from "express";
+import cors from 'cors';
 import cookieSession from "cookie-session";
 import path from "path";
 import dataSource from "./database/data-source";
@@ -66,6 +67,13 @@ class App {
         queueLimit: 0,
       },
     });
+
+    this.app.use(cors({
+      origin: ['http://localhost:3000', 'https://app.phatdat.online'],
+      credentials: true,
+      methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+      allowedHeaders: ['Authorization', 'Content-Type', 'Accept', 'Origin', 'User-Agent']
+    }));
 
     this.app.use("/api/auth", AuthRouter);
     this.app.use("/api/department", DepartmentRouter);
