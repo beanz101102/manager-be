@@ -37,16 +37,18 @@ class App {
     } */
   private setupMiddlewares(): void {
     this.app.use(cors({
-      origin: (origin, callback) => {
+      origin: function(origin, callback) {
         const allowedOrigins = [
           'https://app.phatdat.online',
           'http://localhost:3000',
           'http://127.0.0.1:3000'
         ];
-        if (allowedOrigins.includes(origin) || !origin) {
-          callback(null, true);
+        console.log('Request from origin:', origin);
+        
+        if (!origin || allowedOrigins.includes(origin)) {
+          callback(null, origin);
         } else {
-          callback(new Error('Not allowed by CORS'));
+          callback(new Error('CORS not allowed'));
         }
       },
       credentials: true,
