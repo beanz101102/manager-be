@@ -38,8 +38,10 @@ class App {
   private setupMiddlewares(): void {
     this.app.use(cors({
       origin: 'https://app.phatdat.online',
+      credentials: true,
       methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
       allowedHeaders: ['Content-Type', 'Authorization'],
+      optionsSuccessStatus: 204
     }));
 
     this.app.use(express.json());
