@@ -45,15 +45,21 @@ class App {
         ];
         console.log('Request from origin:', origin);
         
-        if (!origin || allowedOrigins.includes(origin)) {
-          callback(null, origin);
-        } else {
-          callback(new Error('CORS not allowed'));
+        if (!origin) {
+          return callback(null, true);
         }
+
+        if (allowedOrigins.includes(origin)) {
+          return callback(null, origin);
+        }
+
+        callback(new Error('CORS policy violation'));
       },
       credentials: true,
       methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
       allowedHeaders: ['Content-Type', 'Authorization'],
+      exposedHeaders: ['Content-Length', 'X-Requested-With'],
+      maxAge: 86400, // 24 hours
       optionsSuccessStatus: 204
     }));
 
