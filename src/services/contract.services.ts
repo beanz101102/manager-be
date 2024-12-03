@@ -6,6 +6,8 @@ import { Contract, ContractSigner } from "../models/contract.entity";
 import { ContractApproval } from "../models/contract_approval.entity";
 import { User } from "../models/user.entity";
 import NotificationService from "./notification.services";
+import EmailService from "./email.service";
+
 let contractRepo = dataSource.getRepository(Contract);
 let signerRepo = dataSource.getRepository(ContractSigner);
 let stepRepo = dataSource.getRepository(ApprovalTemplate);
@@ -349,7 +351,7 @@ class contractService {
       // 1. Lấy thông tin contract
       const contract = await transactionalEntityManager.findOne(Contract, {
         where: { id: contractId },
-        relations: ["approvalTemplate", "approvalTemplate.steps"],
+        relations: ["approvalTemplate", "approvalTemplate.steps", "customer"],
       });
 
       if (!contract) throw new Error("Contract not found");
@@ -463,6 +465,14 @@ class contractService {
                   `Hợp đồng ${contract.contractNumber} đã được phê duyệt và sẵn sàng để ký`
                 );
               }
+            }
+
+            // Send email to customer
+            if (contract.customer) {
+              await EmailService.sendContractReadyToSignEmail(
+                contract,
+                contract.customer
+              );
             }
           } catch (notificationError) {
             console.error("Error creating notifications:", notificationError);

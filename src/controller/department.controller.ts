@@ -22,6 +22,27 @@ class departmentController {
     let department = await DepartmentService.listDepartment();
     res.status(200).json(department);
   }
+
+  async updateDepartment(req, res) {
+    try {
+      const { departmentName, description, id } = req.body;
+
+      await DepartmentService.updateDepartment(id, departmentName, description);
+      res.status(200).json({ message: "Department updated successfully" });
+    } catch (e) {
+      res.status(404).json({ message: e.message });
+    }
+  }
+
+  async deleteDepartment(req, res) {
+    try {
+      const { id } = req.body;
+      const result = await DepartmentService.deleteDepartment(id);
+      res.status(200).json(result);
+    } catch (e) {
+      res.status(404).json({ message: e.message });
+    }
+  }
 }
 
 export default departmentController;

@@ -13,14 +13,14 @@ class EmailService {
 
   static async sendContractReadyToSignEmail(contract: Contract, signer: User) {
     const subject = `Contract ${contract.contractNumber} is ready for your signature`;
-    const appUrl = process.env.APP_URL || "http://localhost:3000";
+    const appUrl = "https://app.phatdat.online";
 
     const html = `
       <h2>Contract Ready for Signature</h2>
       <p>Dear ${signer.fullName},</p>
       <p>Contract number <strong>${contract.contractNumber}</strong> has been approved and is now ready for your signature.</p>
       <p>Please log in to the application to review and sign the contract:</p>
-      <p><a href="${appUrl}/contracts/${contract.id}/sign" style="padding: 10px 20px; background-color: #4CAF50; color: white; text-decoration: none; border-radius: 5px;">Sign Contract</a></p>
+      <p><a href="${appUrl}/contract/sign/${contract.id}?token=kh_${signer.id}" style="padding: 10px 20px; background-color: #4CAF50; color: white; text-decoration: none; border-radius: 5px;">Sign Contract</a></p>
       <p>If you have any questions, please contact the contract creator.</p>
       <br>
       <p>Best regards,</p>
@@ -51,7 +51,6 @@ class EmailService {
     const subject = `Contract ${
       contract.contractNumber
     } - ${status.toUpperCase()}`;
-    const appUrl = process.env.APP_URL || "http://localhost:3000";
 
     const html = `
       <h2>Contract ${status.toUpperCase()}</h2>
@@ -63,8 +62,7 @@ class EmailService {
       ${
         status === "approved"
           ? `
-        <p>The contract is now waiting for your approval. Please review and take action:</p>
-        <p><a href="${appUrl}/contracts/${contract.id}/approve" style="padding: 10px 20px; background-color: #4CAF50; color: white; text-decoration: none; border-radius: 5px;">Review Contract</a></p>
+        <p>The contract is now waiting for your approval. Please review and take action.</p>
       `
           : ""
       }
