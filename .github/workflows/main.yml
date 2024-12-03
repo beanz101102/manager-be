@@ -59,4 +59,4 @@ jobs:
             
             echo 'Verifying deployment...' && \
             docker-compose ps && \
-            docker-compose logs app --tail=50"
+            docker-compose logs contract_manager_app --tail 50"
