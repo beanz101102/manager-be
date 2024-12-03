@@ -41,7 +41,8 @@ class App {
         const allowedOrigins = [
           'https://app.phatdat.online',
           'http://localhost:3000',
-          'http://127.0.0.1:3000'
+          'http://127.0.0.1:3000',
+          'https://contract-manager-five.vercel.app'
         ];
         console.log('Request from origin:', origin);
         
