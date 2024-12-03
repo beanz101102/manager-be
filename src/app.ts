@@ -38,10 +38,9 @@ class App {
   private setupMiddlewares(): void {
     this.app.use(cors({
       origin: ['http://localhost:3000', 'https://app.phatdat.online'],
-      credentials: true, 
       methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
       allowedHeaders: ['Authorization', 'Content-Type', 'Accept', 'Origin', 'User-Agent', 'X-Requested-With'],
-      exposedHeaders: ['Set-Cookie']
+      optionsSuccessStatus: 204
     }));
 
     this.app.use(express.json());
@@ -52,8 +51,7 @@ class App {
         name: "session",
         keys: [this.appConfig.sessionKey],
         maxAge: this.appConfig.sessionMaxAge,
-        secure: true,
-        sameSite: 'none',
+        secure: false,
         httpOnly: true
       })
     );
