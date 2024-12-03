@@ -58,5 +58,4 @@ jobs:
             sleep 15 && \
             
             echo 'Verifying deployment...' && \
-            docker-compose ps && \
-            docker-compose logs contract_manager_app --tail 50"
+            docker-compose ps"
