@@ -1,9 +1,9 @@
-name: Deploy to VPS
+name: Deploy to Production
 
 on:
   push:
     branches:
-      - staging
+      - prod
 
 jobs:
   deploy:
@@ -12,7 +12,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
         with:
-          ref: staging
+          ref: prod
           fetch-depth: 0
 
       - name: Install sshpass
@@ -43,27 +43,20 @@ jobs:
             
             echo 'Cleaning workspace...' && \
             git clean -fd && \
-            rm -rf dist/ && \
-            
-            echo 'Updating source code...' && \
-            git fetch origin staging && \
-            git reset --hard origin/staging && \
+            git checkout prod && \
+            git fetch origin prod && \
+            git reset --hard origin/prod && \
             
             echo 'Removing old containers and images...' && \
             docker-compose rm -f && \
             docker rmi \$(docker images -q 'manager-be_app') || true && \
             
-            echo 'Rebuilding and starting application...' && \
-            docker-compose up -d --build app && \
+            echo 'Building and starting all services...' && \
+            docker-compose up -d --build && \
             
-            echo 'Waiting for container to be ready...' && \
-            sleep 10 && \
+            echo 'Waiting for services to be ready...' && \
+            sleep 15 && \
             
-            echo 'Building dist folder...' && \
-            docker exec node_app npm run build && \
-            
-            echo 'Restarting application...' && \
-            docker-compose restart app && \
-            
-            echo 'Starting remaining services...' && \
-            docker-compose up -d"
+            echo 'Verifying deployment...' && \
+            docker-compose ps && \
+            docker-compose logs app --tail=50"
