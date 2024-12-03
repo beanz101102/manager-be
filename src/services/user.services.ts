@@ -108,37 +108,40 @@ class UserServices {
   ) {
     const skip = (page - 1) * limit;
 
-    let whereConditions: any = { role };
+    let queryBuilder = userRepo.createQueryBuilder('user')
+        .leftJoinAndSelect('user.department', 'department');
+
+    if (role === 'employee') {
+        queryBuilder.where('user.role IN (:...roles)', { 
+            roles: ['employee', 'admin', 'manager'] 
+        });
+    } else {
+        queryBuilder.where('user.role = :role', { role });
+    }
 
     if (departmentId) {
-      whereConditions.department = { id: departmentId };
+        queryBuilder.andWhere('department.id = :departmentId', { departmentId });
     }
+
     if (text) {
-      whereConditions = [
-        { fullName: Like(`%${text}%`), role },
-        { code: Like(`%${text}%`), role },
-      ];
+        queryBuilder.andWhere(
+            '(user.fullName LIKE :text OR user.code LIKE :text)',
+            { text: `%${text}%` }
+        );
     }
 
-    let listUser = await userRepo.find({
-      relations: ["department"],
-      where: whereConditions,
-      skip: skip,
-      take: limit,
-      order: {
-        createdAt: "DESC",
-      },
-    });
+    queryBuilder
+        .orderBy('user.createdAt', 'DESC')
+        .skip(skip)
+        .take(limit);
 
-    const total = await userRepo.count({
-      where: whereConditions,
-    });
+    const [listUser, total] = await queryBuilder.getManyAndCount();
 
     return {
-      users: listUser,
-      total: total,
-      page: page,
-      lastPage: Math.ceil(total / limit),
+        users: listUser,
+        total: total,
+        page: page,
+        lastPage: Math.ceil(total / limit),
     };
   }
   static async deleteUser(ids: number[]) {
