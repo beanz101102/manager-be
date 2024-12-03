@@ -37,7 +37,7 @@ class App {
     } */
   private setupMiddlewares(): void {
     this.app.use(cors({
-      origin: ['http://localhost:3000', 'https://app.phatdat.online'],
+      origin: ['http://localhost:3000', 'https://app.phatdat.online', 'https://api.phatdat.online'],
       methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
       allowedHeaders: ['Authorization', 'Content-Type', 'Accept', 'Origin', 'User-Agent', 'X-Requested-With'],
       optionsSuccessStatus: 204
