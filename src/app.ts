@@ -1,5 +1,4 @@
 import express from "express";
-import cors from 'cors';
 import cookieSession from "cookie-session";
 import path from "path";
 import dataSource from "./database/data-source";
@@ -36,13 +35,6 @@ class App {
         this.app.use(express.static(path.join(__dirname, 'FileName'), { maxAge:  this.appConfig.expiredStaticFiles}));
     } */
   private setupMiddlewares(): void {
-    this.app.use(cors({
-      origin: ['http://localhost:3000', 'https://app.phatdat.online', 'https://api.phatdat.online'],
-      methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
-      allowedHeaders: ['Authorization', 'Content-Type', 'Accept', 'Origin', 'User-Agent', 'X-Requested-With'],
-      optionsSuccessStatus: 204
-    }));
-
     this.app.use(express.json());
     this.app.use(express.urlencoded({ extended: true }));
 
