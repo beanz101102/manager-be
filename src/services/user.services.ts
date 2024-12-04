@@ -100,7 +100,7 @@ class UserServices {
   }
 
   static async getListUser(
-    role: string,
+    roles?: string[],
     text?: string,
     departmentId?: number,
     page: number = 1,
@@ -108,40 +108,34 @@ class UserServices {
   ) {
     const skip = (page - 1) * limit;
 
-    let queryBuilder = userRepo.createQueryBuilder('user')
-        .leftJoinAndSelect('user.department', 'department');
+    let queryBuilder = userRepo
+      .createQueryBuilder("user")
+      .leftJoinAndSelect("user.department", "department");
 
-    if (role === 'employee') {
-        queryBuilder.where('user.role IN (:...roles)', { 
-            roles: ['employee', 'admin', 'manager'] 
-        });
-    } else {
-        queryBuilder.where('user.role = :role', { role });
+    if (roles && roles.length > 0) {
+      queryBuilder.where("user.role IN (:...roles)", { roles });
     }
 
     if (departmentId) {
-        queryBuilder.andWhere('department.id = :departmentId', { departmentId });
+      queryBuilder.andWhere("department.id = :departmentId", { departmentId });
     }
 
     if (text) {
-        queryBuilder.andWhere(
-            '(user.fullName LIKE :text OR user.code LIKE :text)',
-            { text: `%${text}%` }
-        );
+      queryBuilder.andWhere(
+        "(user.fullName LIKE :text OR user.code LIKE :text)",
+        { text: `%${text}%` }
+      );
     }
 
-    queryBuilder
-        .orderBy('user.createdAt', 'DESC')
-        .skip(skip)
-        .take(limit);
+    queryBuilder.orderBy("user.createdAt", "DESC").skip(skip).take(limit);
 
     const [listUser, total] = await queryBuilder.getManyAndCount();
 
     return {
-        users: listUser,
-        total: total,
-        page: page,
-        lastPage: Math.ceil(total / limit),
+      users: listUser,
+      total: total,
+      page: page,
+      lastPage: Math.ceil(total / limit),
     };
   }
   static async deleteUser(ids: number[]) {
