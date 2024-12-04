@@ -8,5 +8,9 @@ const approvalFlowController = new ApprovalFlowController();
 ApprovalFlowRouter.post("/add", approvalFlowController.createTemplateWithSteps);
 ApprovalFlowRouter.post("/", approvalFlowController.listApprovalFlow);
 ApprovalFlowRouter.post("/detail", approvalFlowController.detailApprovalFlow);
+ApprovalFlowRouter.post(
+  "/update",
+  approvalFlowController.updateTemplateWithSteps
+);
 
 export default ApprovalFlowRouter;

@@ -36,6 +36,21 @@ class ApprovalFlowController {
       res.status(400).json({ message: e.message });
     }
   }
+
+  async updateTemplateWithSteps(req, res) {
+    try {
+      const { id, name, steps } = req.body;
+
+      const approvalFlow = await ApprovalFlowServices.updateTemplateWithSteps(
+        id,
+        name,
+        steps
+      );
+      res.status(200).json(approvalFlow);
+    } catch (e) {
+      res.status(400).json({ message: e.message });
+    }
+  }
 }
 
 export default ApprovalFlowController;

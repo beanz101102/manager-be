@@ -130,6 +130,43 @@ class ApprovalFlowServices {
     await stepRepo.save(stepEntities);
     return savedTemplate;
   }
+
+  static async updateTemplateWithSteps(
+    id: number,
+    name: string,
+    steps: {
+      id: number;
+      departmentId: number;
+      approverId: number;
+      stepOrder: number;
+    }[]
+  ) {
+    const template = await templateRepo.findOneBy({ id });
+    if (!template) {
+      throw new Error("Template not found");
+    }
+
+    template.name = name;
+    const updatedTemplate = await templateRepo.save(template);
+
+    // Update existing steps
+    const stepEntities = await Promise.all(
+      steps.map(async (stepData) => {
+        const step = await stepRepo.findOneBy({ id: stepData.id });
+        if (!step) {
+          throw new Error(`Step with id ${stepData.id} not found`);
+        }
+
+        step.department = { id: stepData.departmentId } as any;
+        step.approver = { id: stepData.approverId } as any;
+        step.stepOrder = stepData.stepOrder;
+        return step;
+      })
+    );
+
+    await stepRepo.save(stepEntities);
+    return updatedTemplate;
+  }
 }
 
 export default ApprovalFlowServices;
