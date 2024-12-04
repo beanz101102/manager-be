@@ -20,7 +20,7 @@ class EmailService {
       <p>Dear ${signer.fullName},</p>
       <p>Contract number <strong>${contract.contractNumber}</strong> has been approved and is now ready for your signature.</p>
       <p>Please log in to the application to review and sign the contract:</p>
-      <p><a href="${appUrl}/contract/sign/${contract.id}?token=kh_${signer.id}" style="padding: 10px 20px; background-color: #4CAF50; color: white; text-decoration: none; border-radius: 5px;">Sign Contract</a></p>
+      <p><a href="${appUrl}/client-signature/${contract.id}?token=kh_${signer.id}" style="padding: 10px 20px; background-color: #4CAF50; color: white; text-decoration: none; border-radius: 5px;">Sign Contract</a></p>
       <p>If you have any questions, please contact the contract creator.</p>
       <br>
       <p>Best regards,</p>
