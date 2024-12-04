@@ -82,6 +82,31 @@ class EmailService {
       console.error("Error sending email:", error);
     }
   }
+
+  static async sendContractCompletionEmail(contract: Contract, user: User) {
+    const subject = `Congratulations! Contract ${contract.contractNumber} is Completed`;
+    const html = `
+      <h2>Contract Completed</h2>
+      <p>Dear ${user.fullName},</p>
+      <p>We are pleased to inform you that contract number <strong>${contract.contractNumber}</strong> has been successfully completed.</p>
+      <p>Thank you for your cooperation and trust in our services.</p>
+      <br>
+      <p>Best regards,</p>
+      <p>Your Application Team</p>
+    `;
+
+    try {
+      await this.transporter.sendMail({
+        from: process.env.SMTP_FROM,
+        to: user.email,
+        subject,
+        html,
+      });
+      console.log(`Completion email sent to ${user.email}`);
+    } catch (error) {
+      console.error("Error sending completion email:", error);
+    }
+  }
 }
 
 export default EmailService;

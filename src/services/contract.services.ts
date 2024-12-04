@@ -586,6 +586,18 @@ class contractService {
           Contract,
           contractSigner.contract
         );
+
+        // Send completion email
+        setImmediate(async () => {
+          try {
+            await EmailService.sendContractCompletionEmail(
+              contractSigner.contract,
+              contractSigner.contract.customer
+            );
+          } catch (emailError) {
+            console.error("Error sending completion email:", emailError);
+          }
+        });
       }
 
       return {
