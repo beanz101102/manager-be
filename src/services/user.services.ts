@@ -100,7 +100,7 @@ class UserServices {
   }
 
   static async getListUser(
-    roles?: string[],
+    role: string,
     text?: string,
     departmentId?: number,
     page: number = 1,
@@ -112,8 +112,8 @@ class UserServices {
       .createQueryBuilder("user")
       .leftJoinAndSelect("user.department", "department");
 
-    if (roles && roles.length > 0) {
-      queryBuilder.where("user.role IN (:...roles)", { roles });
+    if (role) {
+      queryBuilder.where("user.role = :role", { role });
     }
 
     if (departmentId) {

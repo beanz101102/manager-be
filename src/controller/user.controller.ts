@@ -100,14 +100,13 @@ class UserController {
   }
   async getListUser(req, res) {
     try {
-      const roles = req.query.roles ? JSON.parse(req.query.roles) : undefined;
+      const role = req.query.role;
       const page = req.query.page;
       const limit = req.query.limit;
       const text = req.query.text;
       const departmentId = req.query.departmentId;
-
       const user = await UserServices.getListUser(
-        roles,
+        role,
         text,
         departmentId,
         page,
