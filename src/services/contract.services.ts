@@ -204,6 +204,7 @@ class contractService {
         "contractApprovals",
         "contractSigners",
         "contractSigners.signer",
+        "approvalFlows",
       ],
       where: [],
       skip: skip,
@@ -218,6 +219,7 @@ class contractService {
         { createdBy: { id: createdById } },
         { contractApprovals: { approver: { id: createdById } } },
         { contractSigners: { signer: { id: createdById } } },
+        { approvalFlows: { approver: { id: createdById } } },
       ];
     } else {
       query.where = [{}];
