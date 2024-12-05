@@ -12,19 +12,19 @@ class EmailService {
   });
 
   static async sendContractReadyToSignEmail(contract: Contract, signer: User) {
-    const subject = `Contract ${contract.contractNumber} is ready for your signature`;
+    const subject = `Hợp đồng ${contract.contractNumber} đã sẵn sàng để ký`;
     const appUrl = "https://app.phatdat.online";
 
     const html = `
-      <h2>Contract Ready for Signature</h2>
-      <p>Dear ${signer.fullName},</p>
-      <p>Contract number <strong>${contract.contractNumber}</strong> has been approved and is now ready for your signature.</p>
-      <p>Please log in to the application to review and sign the contract:</p>
-      <p><a href="${appUrl}/client-signature/${contract.id}?token=kh_${signer.id}" style="padding: 10px 20px; background-color: #4CAF50; color: white; text-decoration: none; border-radius: 5px;">Sign Contract</a></p>
-      <p>If you have any questions, please contact the contract creator.</p>
+      <h2>Hợp đồng sẵn sàng để ký</h2>
+      <p>Kính gửi ${signer.fullName},</p>
+      <p>Hợp đồng số <strong>${contract.contractNumber}</strong> đã được phê duyệt và hiện đã sẵn sàng để ký.</p>
+      <p>Vui lòng đăng nhập vào ứng dụng để xem xét và ký hợp đồng:</p>
+      <p><a href="${appUrl}/client-signature/${contract.id}?token=kh_${signer.id}" style="padding: 10px 20px; background-color: #4CAF50; color: white; text-decoration: none; border-radius: 5px;">Ký hợp đồng</a></p>
+      <p>Nếu bạn có bất kỳ câu hỏi nào, vui lòng liên hệ với người tạo hợp đồng.</p>
       <br>
-      <p>Best regards,</p>
-      <p>Your Application Team</p>
+      <p>Trân trọng,</p>
+      <p>Đội ngũ ứng dụng</p>
     `;
 
     try {
@@ -34,9 +34,9 @@ class EmailService {
         subject,
         html,
       });
-      console.log(`Signature notification email sent to ${signer.email}`);
+      console.log(`Đã gửi email thông báo ký tên đến ${signer.email}`);
     } catch (error) {
-      console.error("Error sending email:", error);
+      console.error("Lỗi khi gửi email:", error);
       // Không throw error để không ảnh hưởng đến quy trình chính
     }
   }
