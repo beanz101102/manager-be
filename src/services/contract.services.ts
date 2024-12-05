@@ -204,7 +204,7 @@ class contractService {
         "contractApprovals",
         "contractSigners",
         "contractSigners.signer",
-        "approvalFlows",
+        "approvalTemplate.steps",
       ],
       where: [],
       skip: skip,
@@ -219,7 +219,7 @@ class contractService {
         { createdBy: { id: createdById } },
         { contractApprovals: { approver: { id: createdById } } },
         { contractSigners: { signer: { id: createdById } } },
-        { approvalFlows: { approver: { id: createdById } } },
+        { approvalTemplate: { steps: { approver: { id: createdById } } } },
       ];
     } else {
       query.where = [{}];
