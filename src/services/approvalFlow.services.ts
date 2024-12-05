@@ -114,6 +114,15 @@ class ApprovalFlowServices {
     name: string,
     steps: { departmentId: number; approverId: number; stepOrder: number }[]
   ) {
+    // Check if template with same name already exists
+    const existingTemplate = await templateRepo.findOne({
+      where: { name },
+    });
+
+    if (existingTemplate) {
+      throw new Error("An approval template with this name already exists");
+    }
+
     const template = new ApprovalTemplate();
     template.name = name;
     const savedTemplate = await templateRepo.save(template);
@@ -144,6 +153,15 @@ class ApprovalFlowServices {
     const template = await templateRepo.findOneBy({ id });
     if (!template) {
       throw new Error("Template not found");
+    }
+
+    // Check if template with same name exists
+    const existingTemplate = await templateRepo.findOne({
+      where: { name },
+    });
+
+    if (existingTemplate) {
+      throw new Error("An approval template with this name already exists");
     }
 
     template.name = name;
