@@ -13,7 +13,7 @@ const dataSource = new DataSource({
   database: dataBaseConfig.database,
   synchronize: dataBaseConfig.synchronize,
   logging: dataBaseConfig.logging,
-  entities: [dataBaseConfig.entities],
+  entities: ["src/**/**.entity{.ts,.js}"],
   migrations: [dataBaseConfig.migrations],
 });
 
