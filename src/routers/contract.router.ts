@@ -69,5 +69,7 @@ ContractRouter.get(
   "/advanced-statistics",
   contractController.getAdvancedStatistics
 );
+ContractRouter.post("/send-otp", contractController.sendOTP);
+ContractRouter.post("/verify-otp", contractController.verifyOTP);
 
 export default ContractRouter;

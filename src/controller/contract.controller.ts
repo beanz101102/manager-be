@@ -4,12 +4,19 @@ import { User } from "../models/user.entity";
 import { ApprovalFlow } from "../models/approval_flow.entity";
 import { ContractSignature } from "../models/contract_signature.entity";
 import { Contract } from "../models/contract.entity";
+import { Redis } from "ioredis";
+import EmailService from "../services/email.service";
 const path = require("path");
 
 let approvalFlowRepo = dataSource.getRepository(ApprovalFlow);
 let contractSignatureRepo = dataSource.getRepository(ContractSignature);
 let contractRepo = dataSource.getRepository(Contract);
 let userRepo = dataSource.getRepository(User);
+
+const redis = new Redis({
+  host: process.env.REDIS_HOST || "localhost",
+  port: parseInt(process.env.REDIS_PORT || "6379"),
+});
 
 class contractController {
   async createContract(req, res) {
@@ -659,6 +666,80 @@ class contractController {
       return res.status(500).json({
         success: false,
         message: e.message,
+      });
+    }
+  }
+  async sendOTP(req, res) {
+    try {
+      const { email } = req.body;
+
+      if (!email) {
+        return res.status(400).json({
+          success: false,
+          message: "Email is required",
+        });
+      }
+
+      // Generate 6-digit OTP
+      const otp = Math.floor(100000 + Math.random() * 900000).toString();
+
+      // Store OTP in Redis with 5 minutes expiration
+      await redis.set(`otp:${email}`, otp, "EX", 300);
+
+      // Send OTP via email
+      await EmailService.sendOTPEmail(email, otp);
+
+      return res.status(200).json({
+        success: true,
+        message: "OTP sent successfully",
+      });
+    } catch (error) {
+      return res.status(500).json({
+        success: false,
+        message: error.message,
+      });
+    }
+  }
+
+  async verifyOTP(req, res) {
+    try {
+      const { email, otp } = req.body;
+
+      if (!email || !otp) {
+        return res.status(400).json({
+          success: false,
+          message: "Email and OTP are required",
+        });
+      }
+
+      // Get stored OTP from Redis
+      const storedOTP = await redis.get(`otp:${email}`);
+
+      if (!storedOTP) {
+        return res.status(400).json({
+          success: false,
+          message: "OTP has expired or is invalid",
+        });
+      }
+
+      if (otp !== storedOTP) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid OTP",
+        });
+      }
+
+      // Delete used OTP
+      await redis.del(`otp:${email}`);
+
+      return res.status(200).json({
+        success: true,
+        message: "OTP verified successfully",
+      });
+    } catch (error) {
+      return res.status(500).json({
+        success: false,
+        message: error.message,
       });
     }
   }

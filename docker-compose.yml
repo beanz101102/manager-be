@@ -21,6 +21,22 @@ services:
       timeout: 5s
       retries: 5
 
+  redis:
+    image: redis:latest
+    container_name: contract_manager_redis
+    restart: always
+    expose:
+      - "6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - contract-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   phpmyadmin:
     image: phpmyadmin/phpmyadmin
     container_name: contract_manager_phpmyadmin
@@ -46,12 +62,16 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      redis:
+        condition: service_healthy
     environment:
       - DB_HOST=db
       - DB_USER=root
       - DB_PASSWORD=root
       - DB_NAME=Project
       - NODE_ENV=production
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
     networks:
       - contract-network
       - nginx-proxy
@@ -76,6 +96,7 @@ services:
 
 volumes:
   mysql_data:
+  redis_data:
 
 networks:
   contract-network:

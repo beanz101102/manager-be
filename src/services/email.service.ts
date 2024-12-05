@@ -107,6 +107,33 @@ class EmailService {
       console.error("Error sending completion email:", error);
     }
   }
+
+  static async sendOTPEmail(email: string, otp: string) {
+    const subject = `Mã OTP xác thực`;
+    const html = `
+      <h2>Xác thực OTP</h2>
+      <p>Mã OTP của bạn là: <strong>${otp}</strong></p>
+      <p>Mã này sẽ hết hạn trong vòng 5 phút.</p>
+      <p>Vui lòng không chia sẻ mã này với bất kỳ ai.</p>
+      <br>
+      <p>Trân trọng,</p>
+      <p>Đội ngũ ứng dụng</p>
+    `;
+
+    try {
+      await this.transporter.sendMail({
+        from: process.env.SMTP_FROM,
+        to: email,
+        subject,
+        html,
+      });
+      console.log(`OTP email sent to ${email}`);
+      return true;
+    } catch (error) {
+      console.error("Error sending OTP email:", error);
+      throw new Error("Failed to send OTP email");
+    }
+  }
 }
 
 export default EmailService;
