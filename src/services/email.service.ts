@@ -6,8 +6,8 @@ class EmailService {
   private static transporter = nodemailer.createTransport({
     service: "gmail",
     auth: {
-      user: "hungvuong@technixo.com", // Email Gmail của bạn
-      pass: "jtlfweynujkxwose", // App Password từ Gmail
+      user: "Nduythai0101@gmail.com", // Email Gmail của bạn
+      pass: "hesnmlyqblfpkzzj", // App Password từ Gmail
     },
   });
 
