@@ -4,7 +4,7 @@ import { Contract } from "../models/contract.entity";
 import { User } from "../models/user.entity";
 import { ApprovalTemplateStep } from "../models/approval_template_step.entity";
 import { ApprovalTemplate } from "../models/approval_template.entity";
-import { ILike } from "typeorm";
+import { ILike, Not } from "typeorm";
 
 const approvalFlowRepo = dataSource.getRepository(ApprovalFlow);
 const templateRepo = dataSource.getRepository(ApprovalTemplate);
@@ -87,12 +87,22 @@ class ApprovalFlowServices {
     return approvalFlow;
   }
 
-  static async listApprovalFlow(searchName?: string) {
-    const whereCondition = searchName ? { name: ILike(`%${searchName}%`) } : {};
+  static async listApprovalFlow(searchName?: string, userId?: number) {
+    const whereCondition: any = {
+      status: Not("deleted"),
+    };
+
+    if (searchName) {
+      whereCondition.name = ILike(`%${searchName}%`);
+    }
+
+    if (userId) {
+      whereCondition.createdById = userId;
+    }
 
     const templates = await templateRepo.find({
       where: whereCondition,
-      relations: ["steps", "steps.approver", "steps.department"],
+      relations: ["steps", "steps.approver", "steps.department", "createdBy"],
       order: {
         steps: {
           stepOrder: "ASC",
@@ -184,6 +194,17 @@ class ApprovalFlowServices {
 
     await stepRepo.save(stepEntities);
     return updatedTemplate;
+  }
+
+  static async deleteApprovalFlow(id: number) {
+    const template = await templateRepo.findOne({ where: { id } });
+    if (!template) {
+      throw new Error("Template not found");
+    }
+
+    template.status = "deleted";
+    await templateRepo.save(template);
+    return template;
   }
 }
 

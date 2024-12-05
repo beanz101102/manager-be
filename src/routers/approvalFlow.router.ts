@@ -12,5 +12,6 @@ ApprovalFlowRouter.post(
   "/update",
   approvalFlowController.updateTemplateWithSteps
 );
+ApprovalFlowRouter.post("/delete", approvalFlowController.deleteApprovalFlow);
 
 export default ApprovalFlowRouter;

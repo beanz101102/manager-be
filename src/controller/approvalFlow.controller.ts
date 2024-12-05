@@ -4,7 +4,11 @@ class ApprovalFlowController {
   async listApprovalFlow(req, res) {
     try {
       const searchName = req.query.name;
-      const templates = await ApprovalFlowServices.listApprovalFlow(searchName);
+      const userId = req.query.userId;
+      const templates = await ApprovalFlowServices.listApprovalFlow(
+        searchName,
+        userId
+      );
       res.status(200).json(templates);
     } catch (e) {
       res.status(400).json({ message: e.message });
@@ -46,6 +50,16 @@ class ApprovalFlowController {
         name,
         steps
       );
+      res.status(200).json(approvalFlow);
+    } catch (e) {
+      res.status(400).json({ message: e.message });
+    }
+  }
+
+  async deleteApprovalFlow(req, res) {
+    try {
+      const id = req.body.id;
+      const approvalFlow = await ApprovalFlowServices.deleteApprovalFlow(id);
       res.status(200).json(approvalFlow);
     } catch (e) {
       res.status(400).json({ message: e.message });

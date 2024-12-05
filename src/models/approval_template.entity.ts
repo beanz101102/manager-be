@@ -5,8 +5,11 @@ import {
   OneToMany,
   CreateDateColumn,
   UpdateDateColumn,
+  ManyToOne,
+  JoinColumn,
 } from "typeorm";
 import { ApprovalTemplateStep } from "./approval_template_step.entity";
+import { User } from "./user.entity";
 
 @Entity()
 export class ApprovalTemplate {
@@ -29,4 +32,18 @@ export class ApprovalTemplate {
 
   @UpdateDateColumn()
   updatedAt: Date;
+
+  @Column()
+  createdById: number;
+
+  @ManyToOne(() => User)
+  @JoinColumn({ name: "createdById" })
+  createdBy: User;
+
+  @Column({
+    type: "enum",
+    enum: ["active", "inactive", "deleted"],
+    default: "active",
+  })
+  status: "active" | "inactive" | "deleted";
 }
