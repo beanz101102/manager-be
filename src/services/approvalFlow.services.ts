@@ -122,6 +122,7 @@ class ApprovalFlowServices {
 
   static async createTemplateWithSteps(
     name: string,
+    createdById: number,
     steps: { departmentId: number; approverId: number; stepOrder: number }[]
   ) {
     // Check if template with same name already exists
@@ -135,6 +136,7 @@ class ApprovalFlowServices {
 
     const template = new ApprovalTemplate();
     template.name = name;
+    template.createdById = createdById;
     const savedTemplate = await templateRepo.save(template);
 
     const stepEntities = steps.map((stepData) => {

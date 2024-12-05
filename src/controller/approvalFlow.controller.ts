@@ -17,9 +17,10 @@ class ApprovalFlowController {
 
   async createTemplateWithSteps(req, res) {
     try {
-      const { name, steps } = req.body;
+      const { name, steps, id } = req.body;
       const template = await ApprovalFlowServices.createTemplateWithSteps(
         name,
+        id,
         steps
       );
       res.status(200).json(template);
