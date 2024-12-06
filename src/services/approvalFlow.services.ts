@@ -156,7 +156,7 @@ class ApprovalFlowServices {
     id: number,
     name: string,
     steps: {
-      id: number;
+      id?: number;
       departmentId: number;
       approverId: number;
       stepOrder: number;
@@ -171,7 +171,7 @@ class ApprovalFlowServices {
     const existingTemplate = await templateRepo.findOne({
       where: { 
         name,
-        id: Not(id) // Thêm điều kiện này để loại trừ template hiện tại
+        id: Not(id)
       },
     });
 
@@ -182,12 +182,21 @@ class ApprovalFlowServices {
     template.name = name;
     const updatedTemplate = await templateRepo.save(template);
 
-    // Update existing steps
+    // Xử lý cả step cũ và step mới
     const stepEntities = await Promise.all(
       steps.map(async (stepData) => {
-        const step = await stepRepo.findOneBy({ id: stepData.id });
-        if (!step) {
-          throw new Error(`Step with id ${stepData.id} not found`);
+        let step;
+        
+        if (stepData.id) {
+          // Cập nhật step hiện có
+          step = await stepRepo.findOneBy({ id: stepData.id });
+          if (!step) {
+            throw new Error(`Step with id ${stepData.id} not found`);
+          }
+        } else {
+          // Tạo step mới
+          step = new ApprovalTemplateStep();
+          step.template = updatedTemplate;
         }
 
         step.department = { id: stepData.departmentId } as any;
