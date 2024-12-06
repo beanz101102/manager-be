@@ -167,9 +167,12 @@ class ApprovalFlowServices {
       throw new Error("Template not found");
     }
 
-    // Check if template with same name exists
+    // Kiểm tra template name tồn tại, loại trừ template hiện tại
     const existingTemplate = await templateRepo.findOne({
-      where: { name },
+      where: { 
+        name,
+        id: Not(id) // Thêm điều kiện này để loại trừ template hiện tại
+      },
     });
 
     if (existingTemplate) {
