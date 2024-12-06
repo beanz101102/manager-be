@@ -95,6 +95,10 @@ export class Contract {
   // Chỉ thêm trường lý do hủy
   @Column({ type: "text", nullable: true })
   cancelReason: string;
+
+  // Add this field in the Contract class
+  @Column({ type: "timestamp", nullable: true })
+  completedAt: Date;
 }
 
 // Thêm entity mới cho người ký

@@ -584,6 +584,7 @@ class contractService {
 
       if (signedSigners === totalSigners) {
         contractSigner.contract.status = "completed";
+        contractSigner.contract.completedAt = new Date();
         await transactionalEntityManager.save(
           Contract,
           contractSigner.contract
@@ -1135,70 +1136,83 @@ class contractService {
     status,
     createdById,
     customerId,
-  }: {
-    startTime?: number;
-    endTime?: number;
-    status?: string;
-    createdById?: number;
-    customerId?: number;
   }) {
-    const queryBuilder = contractRepo
+    // Tạo base query builder
+    const baseQueryBuilder = () => contractRepo
       .createQueryBuilder("contract")
       .leftJoin("contract.customer", "customer")
       .leftJoin("contract.createdBy", "creator");
 
     // Áp dụng các điều kiện filter
-    if (startTime) {
-      queryBuilder.andWhere("contract.createdAt >= :startDate", {
-        startDate: new Date(startTime).toISOString(),
-      });
-    }
+    const applyFilters = (qb) => {
+      if (startTime) {
+        const startDate = new Date(parseInt(startTime));
+        if (isNaN(startDate.getTime())) {
+          console.error('Invalid start time:', startTime);
+          throw new Error('Invalid start time');
+        }
 
-    if (endTime) {
-      queryBuilder.andWhere("contract.createdAt <= :endDate", {
-        endDate: new Date(endTime).toISOString(),
-      });
-    }
+        // Nếu status là completed, filter theo completedAt
+        if (status === 'completed') {
+          qb.andWhere("contract.completedAt >= :startDate", {
+            startDate: startDate,
+          });
+        } else {
+          qb.andWhere("contract.createdAt >= :startDate", {
+            startDate: startDate,
+          });
+        }
+      }
 
-    if (status) {
-      queryBuilder.andWhere("contract.status = :status", { status });
-    }
+      if (endTime) {
+        const endDate = new Date(parseInt(endTime));
+        if (isNaN(endDate.getTime())) {
+          console.error('Invalid end time:', endTime);
+          throw new Error('Invalid end time');
+        }
 
-    if (createdById) {
-      queryBuilder.andWhere("creator.id = :createdById", { createdById });
-    }
+        // Nếu status là completed, filter theo completedAt
+        if (status === 'completed') {
+          qb.andWhere("contract.completedAt <= :endDate", {
+            endDate: endDate,
+          });
+        } else {
+          qb.andWhere("contract.createdAt <= :endDate", {
+            endDate: endDate,
+          });
+        }
+      }
 
-    if (customerId) {
-      queryBuilder.andWhere("customer.id = :customerId", { customerId });
-    }
+      if (status) {
+        qb.andWhere("contract.status = :status", { status });
+      }
 
-    // Thống kê theo trạng thái
-    const statusStats = await queryBuilder
+      if (createdById) {
+        qb.andWhere("creator.id = :createdById", { createdById });
+      }
+
+      if (customerId) {
+        qb.andWhere("customer.id = :customerId", { customerId });
+      }
+
+      return qb;
+    };
+
+    // Query cho thống kê theo trạng thái
+    const statusStats = await applyFilters(baseQueryBuilder())
       .select("contract.status", "status")
       .addSelect("COUNT(contract.id)", "count")
       .groupBy("contract.status")
       .getRawMany();
 
-    // Thống kê theo tháng
-    const monthlyStats = await queryBuilder
-      .select("DATE_FORMAT(contract.createdAt, '%Y-%m')", "month")
+    // Query cho thống kê theo tháng
+    const monthlyStats = await applyFilters(baseQueryBuilder())
+      .select("DATE_FORMAT(contract.createdAt, '%Y-%m')", "monthYear")
       .addSelect("COUNT(contract.id)", "count")
-      .groupBy("month")
-      .orderBy("month", "DESC")
+      .groupBy("monthYear")
+      .orderBy("monthYear", "DESC")
       .limit(12)
       .getRawMany();
-
-    // Nếu có cả createdById và customerId, thống kê chi tiết mối quan hệ
-    let creatorCustomerStats = [];
-    if (createdById && customerId) {
-      creatorCustomerStats = await queryBuilder
-        .select("contract.status", "status")
-        .addSelect("COUNT(contract.id)", "count")
-        .where("creator.id = :createdById", { createdById })
-        .andWhere("customer.id = :customerId", { customerId })
-        .groupBy("contract.status")
-        .getRawMany();
-    }
 
     // Format kết quả
     const result = {
@@ -1210,20 +1224,23 @@ class contractService {
         }, {}),
       },
       monthlyTrend: monthlyStats.map((item) => ({
-        month: item.month,
+        month: item.monthYear,
         count: parseInt(item.count),
       })),
-      timeRange:
-        startTime && endTime
-          ? {
-              start: new Date(startTime * 1000),
-              end: new Date(endTime * 1000),
-            }
-          : null,
+      timeRange: startTime && endTime ? {
+        start: new Date(startTime * 1000),
+        end: new Date(endTime * 1000),
+      } : null,
     };
 
     // Thêm thống kê về mối quan hệ người tạo - khách hàng nếu có
     if (createdById && customerId) {
+      const creatorCustomerStats = await applyFilters(baseQueryBuilder())
+        .select("contract.status", "status")
+        .addSelect("COUNT(contract.id)", "count")
+        .groupBy("contract.status")
+        .getRawMany();
+
       result["creatorCustomerRelationship"] = {
         total: creatorCustomerStats.reduce(
           (sum, item) => sum + parseInt(item.count),
