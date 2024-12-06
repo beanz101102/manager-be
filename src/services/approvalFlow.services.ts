@@ -179,8 +179,27 @@ class ApprovalFlowServices {
       throw new Error("An approval template with this name already exists");
     }
 
+    // Kiểm tra người duyệt trùng
+    const approverIds = steps.map(step => step.approverId);
+    const uniqueApproverIds = new Set(approverIds);
+    if (approverIds.length !== uniqueApproverIds.size) {
+      throw new Error("Duplicate approvers are not allowed in the template");
+    }
+
     template.name = name;
     const updatedTemplate = await templateRepo.save(template);
+
+    // Lấy tất cả các step hiện tại
+    const existingSteps = await stepRepo.find({
+      where: { template: { id } }
+    });
+
+    // Xóa các step không còn trong danh sách mới
+    const newStepIds = steps.filter(s => s.id).map(s => s.id);
+    const stepsToRemove = existingSteps.filter(step => !newStepIds.includes(step.id));
+    if (stepsToRemove.length > 0) {
+      await stepRepo.remove(stepsToRemove);
+    }
 
     // Xử lý cả step cũ và step mới
     const stepEntities = await Promise.all(
