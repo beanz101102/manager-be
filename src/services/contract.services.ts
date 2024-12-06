@@ -78,22 +78,23 @@ class contractService {
           }
 
           // Tạo thông báo bên ngoài transaction chính
-          setImmediate(async () => {
-            try {
-              for (const signer of signerEntities) {
-                if (signer.signer.role !== "customer") {
-                  await NotificationService.createNotification(
-                    signer.signer,
-                    savedContract,
-                    "contract_to_sign",
-                    `Bạn có một hợp đồng mới cần ký: ${savedContract.contractNumber}`
-                  );
-                }
-              }
-            } catch (notificationError) {
-              console.error("Error creating notifications:", notificationError);
-            }
-          });
+          // no need to create notification when creating contract (bug 22)
+          // setImmediate(async () => {
+          //   try {
+          //     for (const signer of signerEntities) {
+          //       if (signer.signer.role !== "customer") {
+          //         await NotificationService.createNotification(
+          //           signer.signer,
+          //           savedContract,
+          //           "contract_to_sign",
+          //           `Bạn có một hợp đồng mới cần ký: ${savedContract.contractNumber}`
+          //         );
+          //       }
+          //     }
+          //   } catch (notificationError) {
+          //     console.error("Error creating notifications:", notificationError);
+          //   }
+          // });
 
           return savedContract;
         }
