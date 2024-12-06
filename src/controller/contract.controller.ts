@@ -385,14 +385,43 @@ class contractController {
 
   async signContract(req, res) {
     try {
-      const { contractId, signerId } = req.body;
+      const { contractId, signerId, otp } = req.body;
 
-      if (!contractId || !signerId || !req.file) {
+      // Check required fields
+      if (!contractId || !signerId || !req.file || !otp) {
         return res.status(400).json({
           message: "Missing required fields",
-          required: ["contractId", "signerId", "PDF file"],
+          required: ["contractId", "signerId", "PDF file", "otp"],
         });
       }
+
+      // Get user's email from signerId
+      const signer = await userRepo.findOne({ where: { id: signerId } });
+      if (!signer || !signer.email) {
+        return res.status(400).json({
+          success: false,
+          message: "Signer not found or email not available",
+        });
+      }
+
+      // Verify OTP
+      const storedOTP = await redis.get(`otp:${signer.email}`);
+      if (!storedOTP) {
+        return res.status(400).json({
+          success: false,
+          message: "OTP has expired or is invalid",
+        });
+      }
+
+      if (otp !== storedOTP) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid OTP",
+        });
+      }
+
+      // Delete used OTP
+      await redis.del(`otp:${signer.email}`);
 
       // Get the PDF file path from the uploaded file
       const pdfFilePath = `/uploads/${path.basename(req.file.path)}`;
