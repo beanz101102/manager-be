@@ -6,6 +6,7 @@ import { Contract, ContractSigner } from "../models/contract.entity";
 import { ContractApproval } from "../models/contract_approval.entity";
 import { User } from "../models/user.entity";
 import ContractNotificationService from "./contract-notification.service";
+import NotificationService from "./notification.services";
 
 let contractRepo = dataSource.getRepository(Contract);
 let signerRepo = dataSource.getRepository(ContractSigner);
@@ -76,7 +77,7 @@ class contractService {
             signerEntities.push(await signerRepo.save(contractSigner));
           }
 
-          // Tạo thông báo bên ngoài transaction chính
+          // Gửi thông báo sau khi transaction hoàn thành
           setImmediate(async () => {
             try {
               await ContractNotificationService.sendNewContractNotifications(
@@ -207,34 +208,54 @@ class contractService {
     };
 
     if (createdById) {
-      // Base condition - người tạo luôn thấy hợp đồng của mình
-      query.where = [
-        // Người tạo thấy tất cả hợp đồng của họ
-        {
-          createdBy: { id: createdById },
-        },
-
-        // Người phê duyệt chỉ thấy hợp đồng đang chờ phê duyệt
-        {
-          status: "pending_approval",
-          approvalTemplate: {
-            steps: {
-              approver: { id: createdById },
+      if (status === "pending_approval") {
+        // Chỉ lấy hợp đồng cần phê duyệt
+        query.where = [
+          {
+            status: "pending_approval",
+            approvalTemplate: {
+              steps: {
+                approver: { id: createdById },
+              },
             },
+          } as any,
+        ];
+      } else if (status === "ready_to_sign") {
+        // Chỉ lấy hợp đồng cần ký
+        query.where = [
+          {
+            status: "ready_to_sign",
+            contractSigners: {
+              signer: { id: createdById },
+              status: "pending",
+            },
+          } as any,
+        ];
+      } else {
+        // Mặc định: lấy hợp đồng user tạo
+        query.where = [
+          {
+            createdBy: { id: createdById },
           },
-        } as any,
+        ];
 
-        // Người ký chỉ thấy hợp đồng đang chờ ký
-        {
-          status: "ready_to_sign",
-          contractSigners: {
-            signer: { id: createdById },
-            status: "pending",
-          },
-        } as any,
-      ];
+        // Nếu có status khác, thêm ��iều kiện status
+        if (status) {
+          query.where = query.where.map((condition) => ({
+            ...condition,
+            status: status,
+          }));
+        }
+      }
     } else {
       query.where = [{}];
+
+      if (status) {
+        query.where = query.where.map((condition) => ({
+          ...condition,
+          status: status,
+        }));
+      }
     }
 
     if (contractNumber) {
@@ -362,7 +383,7 @@ class contractService {
     comments?: string
   ) {
     return await dataSource.transaction(async (transactionalEntityManager) => {
-      // 1. Lấy thông tin contract
+      // 1. Lấy thông tin contract và template steps
       const contract = await transactionalEntityManager.findOne(Contract, {
         where: { id: contractId },
         relations: ["approvalTemplate", "approvalTemplate.steps", "customer"],
@@ -370,7 +391,67 @@ class contractService {
 
       if (!contract) throw new Error("Contract not found");
 
-      // 2. Xử lý khi reject
+      // 2. Lấy tất cả các steps theo thứ tự
+      const templateSteps = await transactionalEntityManager
+        .createQueryBuilder(ApprovalTemplateStep, "step")
+        .where("step.templateId = :templateId", {
+          templateId: contract.approvalTemplate.id,
+        })
+        .orderBy("step.stepOrder", "ASC")
+        .getMany();
+
+      // 3. Lấy các approvals hiện tại
+      const existingApprovals = await transactionalEntityManager
+        .createQueryBuilder(ContractApproval, "approval")
+        .leftJoinAndSelect("approval.templateStep", "step")
+        .where("approval.contractId = :contractId", { contractId })
+        .orderBy("step.stepOrder", "ASC")
+        .getMany();
+
+      // 4. Xác định bước hiện tại
+      const nextStepOrder = existingApprovals.length + 1;
+      const nextStep = templateSteps.find(
+        (step) => step.stepOrder === nextStepOrder
+      );
+
+      if (!nextStep) {
+        throw new Error("No more steps to approve");
+      }
+
+      // 5. Kiểm tra xem người dùng có phải là người được chỉ định ở bước tiếp theo không
+      if (nextStep.approverId !== userId) {
+        const expectedApprover = await transactionalEntityManager
+          .getRepository(User)
+          .findOne({ where: { id: nextStep.approverId } });
+
+        throw new Error(
+          `This step (${nextStep.stepOrder}) must be approved by ${
+            expectedApprover?.fullName || "another user"
+          } (ID: ${nextStep.approverId}). Your ID: ${userId}`
+        );
+      }
+
+      // 6. Kiểm tra các bước trước đã được duyệt chưa
+      for (let i = 0; i < nextStepOrder - 1; i++) {
+        const previousStep = templateSteps[i];
+        const previousApproval = existingApprovals.find(
+          (a) => a.templateStep.stepOrder === previousStep.stepOrder
+        );
+
+        if (!previousApproval || previousApproval.status !== "approved") {
+          const expectedApprover = await transactionalEntityManager
+            .getRepository(User)
+            .findOne({ where: { id: previousStep.approverId } });
+
+          throw new Error(
+            `Step ${previousStep.stepOrder} must be approved by ${
+              expectedApprover?.fullName || "another user"
+            } (ID: ${previousStep.approverId}) first`
+          );
+        }
+      }
+
+      // Nếu đã qua được tất cả các kiểm tra, tiếp tục xử lý approval
       if (status === "rejected") {
         // Cập nhật trạng thái contract về draft để user có thể sửa
         await transactionalEntityManager.update(Contract, contractId, {
@@ -403,6 +484,19 @@ class contractService {
           );
         }
 
+        setImmediate(async () => {
+          try {
+            await ContractNotificationService.sendApprovalNotifications(
+              contract,
+              userId,
+              "rejected",
+              comments
+            );
+          } catch (error) {
+            console.error("Error sending rejection notifications:", error);
+          }
+        });
+
         return {
           success: true,
           message: "Contract rejected successfully",
@@ -415,40 +509,11 @@ class contractService {
         };
       }
 
-      // 3. Xử lý khi approve
-      const templateSteps = await transactionalEntityManager
-        .createQueryBuilder(ApprovalTemplateStep, "step")
-        .where("step.templateId = :templateId", {
-          templateId: contract.approvalTemplate.id,
-        })
-        .orderBy("step.stepOrder", "ASC")
-        .getMany();
-
-      if (!templateSteps.length) {
-        throw new Error("No approval steps found");
-      }
-
-      // Lấy các approvals hiện tại
-      const existingApprovals = await transactionalEntityManager
-        .createQueryBuilder(ContractApproval, "approval")
-        .where("approval.contractId = :contractId", { contractId })
-        .andWhere("approval.status = :status", { status: "approved" })
-        .getMany();
-
-      const currentStepOrder = existingApprovals.length + 1;
-      const currentStep = templateSteps.find(
-        (s) => s.stepOrder === currentStepOrder
-      );
-
-      if (!currentStep) {
-        throw new Error("No more steps to approve");
-      }
-
       // Tạo approval mới
       const newApproval = transactionalEntityManager.create(ContractApproval, {
         contract: { id: contractId },
         approver: { id: userId },
-        templateStep: { id: currentStep.id },
+        templateStep: { id: nextStep.id },
         status: "approved",
         comments: comments,
         approvedAt: new Date(),
@@ -457,7 +522,7 @@ class contractService {
       await transactionalEntityManager.save(ContractApproval, newApproval);
 
       // Cập nhật trạng thái contract
-      if (currentStepOrder === templateSteps.length) {
+      if (nextStepOrder === templateSteps.length) {
         await transactionalEntityManager.update(Contract, contractId, {
           status: "ready_to_sign",
         });
@@ -499,10 +564,10 @@ class contractService {
         data: {
           contractId,
           status:
-            currentStepOrder === templateSteps.length
+            nextStepOrder === templateSteps.length
               ? "ready_to_sign"
               : "pending_approval",
-          stepOrder: currentStepOrder,
+          stepOrder: nextStepOrder,
           totalSteps: templateSteps.length,
         },
       };
@@ -581,18 +646,19 @@ class contractService {
           Contract,
           contractSigner.contract
         );
-
-        setImmediate(async () => {
-          try {
-            await ContractNotificationService.sendSignatureNotifications(
-              contractSigner.contract,
-              signerId
-            );
-          } catch (error) {
-            console.error("Error sending signature notifications:", error);
-          }
-        });
       }
+
+      // Add notification call after saving all changes
+      setImmediate(async () => {
+        try {
+          await ContractNotificationService.sendSignatureNotifications(
+            contractSigner.contract,
+            signerId
+          );
+        } catch (error) {
+          console.error("Error sending signature notifications:", error);
+        }
+      });
 
       return {
         success: true,
@@ -617,7 +683,6 @@ class contractService {
     userId: number
   ) {
     return await dataSource.transaction(async (transactionalEntityManager) => {
-      // Ly tất cả các hp đồng cần duyệt
       const contracts = await contractRepo.find({
         where: { id: In(contractIds) },
         relations: ["createdBy", "approvalTemplate"],
@@ -632,7 +697,6 @@ class contractService {
         failed: [],
       };
 
-      // Xử lý từng hợp đồng
       for (const contract of contracts) {
         try {
           // Kiểm tra điều kiện
@@ -651,33 +715,29 @@ class contractService {
           await transactionalEntityManager.save(Contract, contract);
 
           // Lấy thông tin người phê duyệt đầu tiên
-          //   const firstApprovalStep = await transactionalEntityManager.findOne(
-          //     ApprovalTemplateStep,
-          //     {
-          //       where: { templateId: contract.approvalTemplate.id },
-          //       order: { stepOrder: "ASC" },
-          //     }
-          //   );
+          const firstApprovalStep = await transactionalEntityManager
+            .getRepository(ApprovalTemplateStep)
+            .findOne({
+              where: { templateId: contract.approvalTemplate.id },
+              relations: ["approver"],
+              order: { stepOrder: "ASC" },
+            });
 
-          //   if (firstApprovalStep) {
-          //     // Gửi email thông báo cho người phê duyệt đầu tiên
-          //     const firstApprover = await transactionalEntityManager.findOne(
-          //       User,
-          //       {
-          //         where: { id: firstApprovalStep.approverId },
-          //       }
-          //     );
-
-          //     if (firstApprover) {
-          //       await EmailService.sendContractApprovalNotification(
-          //         contract,
-          //         firstApprover,
-          //         contract.createdBy,
-          //         "submitted",
-          //         "Contract submitted for approval"
-          //       );
-          //     }
-          //   }
+          if (firstApprovalStep && firstApprovalStep.approver) {
+            // Gửi thông báo cho người phê duyệt đầu tiên
+            setImmediate(async () => {
+              try {
+                await NotificationService.createNotification(
+                  firstApprovalStep.approver,
+                  contract,
+                  "contract_approval",
+                  `Hợp đồng ${contract.contractNumber} đang chờ bạn phê duyệt`
+                );
+              } catch (error) {
+                console.error("Error sending notification:", error);
+              }
+            });
+          }
 
           results.success.push({
             contractId: contract.id,

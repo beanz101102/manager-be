@@ -473,14 +473,24 @@ class contractController {
       // Validate main inputs
       if (!status || !approverId) {
         return res.status(400).json({
+          success: false,
           message: "Missing required fields",
           required: ["status", "approverId"],
+        });
+      }
+
+      // Validate status value
+      if (!["approved", "rejected"].includes(status)) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid status. Must be either 'approved' or 'rejected'",
         });
       }
 
       // Validate contracts array
       if (!Array.isArray(contracts) || contracts.length === 0) {
         return res.status(400).json({
+          success: false,
           message: "Please provide an array of contracts",
           required: [
             {
@@ -493,9 +503,10 @@ class contractController {
 
       // Validate each contract object
       for (const contract of contracts) {
-        if (!contract.contractId) {
+        if (!contract.contractId || typeof contract.contractId !== "number") {
           return res.status(400).json({
-            message: "Missing contractId in one or more contracts",
+            success: false,
+            message: "Each contract must have a valid contractId (number)",
           });
         }
       }
@@ -506,20 +517,46 @@ class contractController {
         approverId
       );
 
-      // Thêm thông tin chi tiết về việc reset nếu reject
-      if (status === "rejected") {
-        return res.status(200).json({
-          ...result,
-          message:
-            "Contracts rejected and reset to draft status. All approvals and signatures have been cleared.",
-          details:
-            "These contracts will need to go through the entire approval and signing process again.",
+      // Kiểm tra kết quả t� service
+      if (result.data.failedContracts.length > 0) {
+        return res.status(400).json({
+          success: false,
+          message: `Some contracts could not be ${status}`,
+          details: {
+            successful: result.data.successfulContracts,
+            failed: result.data.failedContracts.map((f) => ({
+              contractId: f.contractId,
+              reason: f.error,
+            })),
+          },
         });
       }
 
-      return res.status(200).json(result);
+      // Thêm thông tin chi tiết về việc reset nếu reject
+      if (status === "rejected") {
+        return res.status(200).json({
+          success: true,
+          message:
+            "Contracts rejected and reset to draft status. All approvals and signatures have been cleared.",
+          details: {
+            successful: result.data.successfulContracts,
+            message:
+              "These contracts will need to go through the entire approval and signing process again.",
+          },
+        });
+      }
+
+      return res.status(200).json({
+        success: true,
+        message: `Successfully ${status} all contracts`,
+        data: result.data,
+      });
     } catch (e) {
-      return res.status(500).json({ message: e.message });
+      return res.status(500).json({
+        success: false,
+        message: "An error occurred while processing the approval",
+        error: e.message,
+      });
     }
   }
   async cancelContracts(req, res) {

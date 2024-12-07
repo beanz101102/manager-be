@@ -6,8 +6,8 @@ class EmailService {
   private static transporter = nodemailer.createTransport({
     service: "gmail",
     auth: {
-      user: "Nduythai0101@gmail.com", // Email Gmail của bạn
-      pass: "hesnmlyqblfpkzzj", // App Password từ Gmail
+      user: "Nduythai0101@gmail.com",
+      pass: "hesnmlyqblfpkzzj",
     },
   });
 
@@ -37,62 +37,44 @@ class EmailService {
       console.log(`Đã gửi email thông báo ký tên đến ${signer.email}`);
     } catch (error) {
       console.error("Lỗi khi gửi email:", error);
-      // Không throw error để không ảnh hưởng đến quy trình chính
     }
   }
 
-  static async sendContractApprovalNotification(
-    contract: Contract,
-    nextApprover: User,
-    currentApprover: User,
-    status: "approved" | "rejected",
-    comments?: string
-  ) {
-    const subject = `Contract ${
-      contract.contractNumber
-    } - ${status.toUpperCase()}`;
-
+  static async sendNewContractEmail(contract: Contract, customer: User) {
+    const subject = `Hợp đồng mới ${contract.contractNumber}`;
     const html = `
-      <h2>Contract ${status.toUpperCase()}</h2>
-      <p>Dear ${nextApprover.fullName},</p>
-      <p>Contract number <strong>${
-        contract.contractNumber
-      }</strong> has been ${status} by ${currentApprover.fullName}.</p>
-      ${comments ? `<p>Comments: ${comments}</p>` : ""}
-      ${
-        status === "approved"
-          ? `
-        <p>The contract is now waiting for your approval. Please review and take action.</p>
-      `
-          : ""
-      }
+      <h2>Thông báo hợp đồng mới</h2>
+      <p>Kính gửi ${customer.fullName},</p>
+      <p>Hợp đồng số <strong>${contract.contractNumber}</strong> đã được tạo.</p>
+      <p>Chúng tôi sẽ thông báo cho bạn khi hợp đồng sẵn sàng để ký.</p>
       <br>
-      <p>Best regards,</p>
-      <p>Your Application Team</p>
+      <p>Trân trọng,</p>
+      <p>Đội ngũ ứng dụng</p>
     `;
 
     try {
       await this.transporter.sendMail({
         from: process.env.SMTP_FROM,
-        to: nextApprover.email,
+        to: customer.email,
         subject,
         html,
       });
+      console.log(`Đã gửi email thông báo hợp đồng mới đến ${customer.email}`);
     } catch (error) {
-      console.error("Error sending email:", error);
+      console.error("Lỗi khi gửi email:", error);
     }
   }
 
   static async sendContractCompletionEmail(contract: Contract, user: User) {
-    const subject = `Congratulations! Contract ${contract.contractNumber} is Completed`;
+    const subject = `Hợp đồng ${contract.contractNumber} đã hoàn thành`;
     const html = `
-      <h2>Contract Completed</h2>
-      <p>Dear ${user.fullName},</p>
-      <p>We are pleased to inform you that contract number <strong>${contract.contractNumber}</strong> has been successfully completed.</p>
-      <p>Thank you for your cooperation and trust in our services.</p>
+      <h2>Hợp đồng đã hoàn thành</h2>
+      <p>Kính gửi ${user.fullName},</p>
+      <p>Hợp đồng số <strong>${contract.contractNumber}</strong> đã được hoàn thành.</p>
+      <p>Cảm ơn sự hợp tác của bạn.</p>
       <br>
-      <p>Best regards,</p>
-      <p>Your Application Team</p>
+      <p>Trân trọng,</p>
+      <p>Đội ngũ ứng dụng</p>
     `;
 
     try {
@@ -102,9 +84,8 @@ class EmailService {
         subject,
         html,
       });
-      console.log(`Completion email sent to ${user.email}`);
     } catch (error) {
-      console.error("Error sending completion email:", error);
+      console.error("Lỗi khi gửi email:", error);
     }
   }
 
@@ -117,7 +98,7 @@ class EmailService {
       <p>Vui lòng không chia sẻ mã này với bất kỳ ai.</p>
       <br>
       <p>Trân trọng,</p>
-      <p>Đội ngũ ứng dụng</p>
+      <p>Đội ngũ ứng d��ng</p>
     `;
 
     try {

@@ -58,17 +58,18 @@ class NotificationService {
   }
 
   static async markAllAsRead(userId: number) {
-    await notificationRepo.update(
-      { user: { id: userId }, isRead: false },
-      { isRead: true }
-    );
+    await notificationRepo.update({ user: { id: userId } }, { isRead: true });
   }
 
   static async getNotificationsByUser(userId: number) {
     const [notifications, total] = await notificationRepo.findAndCount({
-      where: { user: { id: userId } },
+      where: {
+        user: { id: userId },
+      },
       relations: ["contract"],
-      order: { createdAt: "DESC" },
+      order: {
+        createdAt: "DESC", // Sort by createdAt in descending order (newest first)
+      },
     });
 
     return notifications;

@@ -3,8 +3,7 @@ import NotificationService from "../services/notification.services";
 class NotificationController {
   async getNotifications(req, res) {
     try {
-      const userId = req.id; // Assuming you have user info in request
-      const { page, limit } = req.query;
+      const userId = req.body.userId;
 
       const notifications = await NotificationService.getNotificationsByUser(
         userId
