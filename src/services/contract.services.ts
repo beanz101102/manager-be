@@ -207,11 +207,31 @@ class contractService {
     };
 
     if (createdById) {
+      // Base condition - người tạo luôn thấy hợp đồng của mình
       query.where = [
-        { createdBy: { id: createdById } },
-        { contractApprovals: { approver: { id: createdById } } },
-        { contractSigners: { signer: { id: createdById } } },
-        { approvalTemplate: { steps: { approver: { id: createdById } } } },
+        // Người tạo thấy tất cả hợp đồng của họ
+        {
+          createdBy: { id: createdById },
+        },
+
+        // Người phê duyệt chỉ thấy hợp đồng đang chờ phê duyệt
+        {
+          status: "pending_approval",
+          approvalTemplate: {
+            steps: {
+              approver: { id: createdById },
+            },
+          },
+        } as any,
+
+        // Người ký chỉ thấy hợp đồng đang chờ ký
+        {
+          status: "ready_to_sign",
+          contractSigners: {
+            signer: { id: createdById },
+            status: "pending",
+          },
+        } as any,
       ];
     } else {
       query.where = [{}];
