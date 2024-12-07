@@ -34,13 +34,26 @@ CREATE TABLE user (
     FOREIGN KEY (departmentId) REFERENCES department(id)
 );
 
+-- Table for UserSignature
+CREATE TABLE user_signature (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    userId INT NOT NULL,
+    signatureImagePath VARCHAR(255) NOT NULL,
+    createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (userId) REFERENCES user(id)
+);
+
 -- Table for ApprovalTemplate
 CREATE TABLE approval_template (
     id INT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(255) NOT NULL,
     isActive BOOLEAN DEFAULT TRUE,
+    createdById INT NOT NULL,
+    status ENUM('active', 'inactive', 'deleted') DEFAULT 'active',
     createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (createdById) REFERENCES user(id)
 );
 
 -- Table for ApprovalTemplateStep
@@ -52,7 +65,7 @@ CREATE TABLE approval_template_step (
     stepOrder INT NOT NULL,
     createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (templateId) REFERENCES approval_template(id),
+    FOREIGN KEY (templateId) REFERENCES approval_template(id) ON DELETE CASCADE,
     FOREIGN KEY (departmentId) REFERENCES department(id),
     FOREIGN KEY (approverId) REFERENCES user(id)
 );
@@ -65,13 +78,14 @@ CREATE TABLE contract (
     contractType VARCHAR(100),
     approvalTemplateId INT NOT NULL,
     createdById INT NOT NULL,
-    createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    deletedAt TIMESTAMP NULL,
-    updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     status ENUM('draft', 'pending_approval', 'rejected', 'ready_to_sign', 'completed', 'cancelled') DEFAULT 'draft',
     note TEXT,
-    cancelReason TEXT,
     pdfFilePath VARCHAR(255),
+    cancelReason TEXT,
+    completedAt TIMESTAMP NULL,
+    createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deletedAt TIMESTAMP NULL,
     FOREIGN KEY (customerId) REFERENCES user(id),
     FOREIGN KEY (approvalTemplateId) REFERENCES approval_template(id),
     FOREIGN KEY (createdById) REFERENCES user(id)
@@ -82,11 +96,9 @@ CREATE TABLE contract_signer (
     id INT AUTO_INCREMENT PRIMARY KEY,
     contractId INT NOT NULL,
     signerId INT NOT NULL,
+    status ENUM('pending', 'signed') DEFAULT 'pending',
     signOrder INT NOT NULL,
-    status ENUM('pending', 'signed', 'rejected') DEFAULT 'pending',
     signedAt TIMESTAMP NULL,
-    createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (contractId) REFERENCES contract(id) ON DELETE CASCADE,
     FOREIGN KEY (signerId) REFERENCES user(id)
 );
@@ -122,21 +134,6 @@ CREATE TABLE contract_approval (
     FOREIGN KEY (approverId) REFERENCES user(id)
 );
 
--- Table for ApprovalFlow
-CREATE TABLE approval_flow (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    contractId INT NOT NULL,
-    stepNumber INT NOT NULL,
-    approverId INT NOT NULL,
-    action VARCHAR(255) NOT NULL,
-    actionSource ENUM('internal', 'customer') NOT NULL,
-    approvalStatus ENUM('pending', 'approved', 'rejected') DEFAULT 'pending',
-    approvalDate TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    comments TEXT,
-    FOREIGN KEY (contractId) REFERENCES contract(id),
-    FOREIGN KEY (approverId) REFERENCES user(id)
-);
-
 -- Table for Notification
 CREATE TABLE notification (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -158,27 +155,18 @@ CREATE TABLE notification (
 );
 
 -- Indexes for optimization
+CREATE INDEX idx_user_code ON user(code);
+CREATE INDEX idx_user_email ON user(email);
+CREATE INDEX idx_user_username ON user(username);
 CREATE INDEX idx_contract_number ON contract(contractNumber);
 CREATE INDEX idx_contract_status ON contract(status);
 CREATE INDEX idx_contract_created_at ON contract(createdAt);
-CREATE INDEX idx_signer_status ON contract_signer(status);
-CREATE INDEX idx_contract_approval_status ON contract_approval(status);
-CREATE INDEX idx_contract_approval_date ON contract_approval(approvedAt);
-CREATE INDEX idx_contract_approval_contract_status ON contract_approval(contractId, status);
-CREATE INDEX idx_contract_signer_contract_status ON contract_signer(contractId, status);
-CREATE INDEX idx_contract_approval_approver ON contract_approval(approverId);
-CREATE INDEX idx_contract_signer_signer ON contract_signer(signerId);
-CREATE INDEX idx_notification_user ON notification(userId);
-CREATE INDEX idx_notification_contract ON notification(contractId);
-CREATE INDEX idx_notification_isread ON notification(isRead);
-CREATE INDEX idx_notification_created ON notification(createdAt);
-CREATE INDEX idx_notification_user_unread ON notification(userId, isRead);
-CREATE INDEX idx_approval_flow_contract ON approval_flow(contractId);
-CREATE INDEX idx_approval_flow_approver ON approval_flow(approverId);
-CREATE INDEX idx_approval_flow_status ON approval_flow(approvalStatus);
-CREATE INDEX idx_contract_signature_contract ON contract_signature(contractId);
-CREATE INDEX idx_contract_signature_signer ON contract_signature(signerId);
+CREATE INDEX idx_approval_template_status ON approval_template(status);
+CREATE INDEX idx_contract_signer_status ON contract_signer(status);
 CREATE INDEX idx_contract_signature_status ON contract_signature(status);
+CREATE INDEX idx_contract_approval_status ON contract_approval(status);
+CREATE INDEX idx_notification_user_unread ON notification(userId, isRead);
+CREATE INDEX idx_notification_contract ON notification(contractId);
 
 
 
