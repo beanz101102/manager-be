@@ -156,7 +156,7 @@ class ApprovalFlowServices {
     id: number,
     name: string,
     steps: {
-      id: number;
+      id?: number;
       departmentId: number;
       approverId: number;
       stepOrder: number;
@@ -167,24 +167,55 @@ class ApprovalFlowServices {
       throw new Error("Template not found");
     }
 
-    // Check if template with same name exists
+    // Kiểm tra template name tồn tại, loại trừ template hiện tại
     const existingTemplate = await templateRepo.findOne({
-      where: { name },
+      where: { 
+        name,
+        id: Not(id)
+      },
     });
 
     if (existingTemplate) {
       throw new Error("An approval template with this name already exists");
     }
 
+    // Kiểm tra người duyệt trùng
+    const approverIds = steps.map(step => step.approverId);
+    const uniqueApproverIds = new Set(approverIds);
+    if (approverIds.length !== uniqueApproverIds.size) {
+      throw new Error("Duplicate approvers are not allowed in the template");
+    }
+
     template.name = name;
     const updatedTemplate = await templateRepo.save(template);
 
-    // Update existing steps
+    // Lấy tất cả các step hiện tại
+    const existingSteps = await stepRepo.find({
+      where: { template: { id } }
+    });
+
+    // Xóa các step không còn trong danh sách mới
+    const newStepIds = steps.filter(s => s.id).map(s => s.id);
+    const stepsToRemove = existingSteps.filter(step => !newStepIds.includes(step.id));
+    if (stepsToRemove.length > 0) {
+      await stepRepo.remove(stepsToRemove);
+    }
+
+    // Xử lý cả step cũ và step mới
     const stepEntities = await Promise.all(
       steps.map(async (stepData) => {
-        const step = await stepRepo.findOneBy({ id: stepData.id });
-        if (!step) {
-          throw new Error(`Step with id ${stepData.id} not found`);
+        let step;
+        
+        if (stepData.id) {
+          // Cập nhật step hiện có
+          step = await stepRepo.findOneBy({ id: stepData.id });
+          if (!step) {
+            throw new Error(`Step with id ${stepData.id} not found`);
+          }
+        } else {
+          // Tạo step mới
+          step = new ApprovalTemplateStep();
+          step.template = updatedTemplate;
         }
 
         step.department = { id: stepData.departmentId } as any;
