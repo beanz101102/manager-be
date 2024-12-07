@@ -5,8 +5,7 @@ import { ApprovalTemplateStep } from "../models/approval_template_step.entity";
 import { Contract, ContractSigner } from "../models/contract.entity";
 import { ContractApproval } from "../models/contract_approval.entity";
 import { User } from "../models/user.entity";
-import NotificationService from "./notification.services";
-import EmailService from "./email.service";
+import ContractNotificationService from "./contract-notification.service";
 
 let contractRepo = dataSource.getRepository(Contract);
 let signerRepo = dataSource.getRepository(ContractSigner);
@@ -80,18 +79,11 @@ class contractService {
           // Tạo thông báo bên ngoài transaction chính
           setImmediate(async () => {
             try {
-              for (const signer of signerEntities) {
-                if (signer.signer.role !== "customer") {
-                  await NotificationService.createNotification(
-                    signer.signer,
-                    savedContract,
-                    "contract_to_sign",
-                    `Bạn có một hợp đồng mới cần ký: ${savedContract.contractNumber}`
-                  );
-                }
-              }
-            } catch (notificationError) {
-              console.error("Error creating notifications:", notificationError);
+              await ContractNotificationService.sendNewContractNotifications(
+                savedContract
+              );
+            } catch (error) {
+              console.error("Error sending notifications:", error);
             }
           });
 
@@ -382,12 +374,12 @@ class contractService {
           .execute();
 
         // Thông báo cho người tạo nếu họ không phải là khách hàng
-        if (contract.createdBy.role !== "customer") {
-          await NotificationService.createNotification(
-            contract.createdBy,
+        if (contract.createdBy) {
+          await ContractNotificationService.sendApprovalNotifications(
             contract,
-            "contract_rejected",
-            `Hợp đồng ${contract.contractNumber} đã bị từ chối`
+            userId,
+            "rejected",
+            comments
           );
         }
 
@@ -450,34 +442,16 @@ class contractService {
           status: "ready_to_sign",
         });
 
-        // Xử lý notification bên ngoài transaction
-        const signers = await signerRepo.find({
-          where: { contract: { id: contractId } },
-          relations: ["signer"],
-        });
-
         setImmediate(async () => {
           try {
-            for (const signer of signers) {
-              if (signer.signer.role !== "customer") {
-                await NotificationService.createNotification(
-                  signer.signer,
-                  contract,
-                  "contract_to_sign",
-                  `Hợp đồng ${contract.contractNumber} đã được phê duyệt và sẵn sàng để ký`
-                );
-              }
-            }
-
-            // Send email to customer
-            if (contract.customer) {
-              await EmailService.sendContractReadyToSignEmail(
-                contract,
-                contract.customer
-              );
-            }
-          } catch (notificationError) {
-            console.error("Error creating notifications:", notificationError);
+            await ContractNotificationService.sendApprovalNotifications(
+              contract,
+              userId,
+              "approved",
+              comments
+            );
+          } catch (error) {
+            console.error("Error sending approval notifications:", error);
           }
         });
       } else {
@@ -485,21 +459,16 @@ class contractService {
           status: "pending_approval",
         });
 
-        // Xử lý notification cho người phê duyệt tiếp theo bên ngoài transaction
-        const nextApprover = templateSteps[currentStepOrder].approver;
-
         setImmediate(async () => {
           try {
-            if (nextApprover.role !== "customer") {
-              await NotificationService.createNotification(
-                nextApprover,
-                contract,
-                "contract_approval",
-                `Bạn có một hợp đồng cần phê duyệt: ${contract.contractNumber}`
-              );
-            }
-          } catch (notificationError) {
-            console.error("Error creating notification:", notificationError);
+            await ContractNotificationService.sendApprovalNotifications(
+              contract,
+              userId,
+              "approved",
+              comments
+            );
+          } catch (error) {
+            console.error("Error sending approval notifications:", error);
           }
         });
       }
@@ -509,7 +478,10 @@ class contractService {
         message: `Contract approved successfully`,
         data: {
           contractId,
-          status: "approved",
+          status:
+            currentStepOrder === templateSteps.length
+              ? "ready_to_sign"
+              : "pending_approval",
           stepOrder: currentStepOrder,
           totalSteps: templateSteps.length,
         },
@@ -590,15 +562,14 @@ class contractService {
           contractSigner.contract
         );
 
-        // Send completion email
         setImmediate(async () => {
           try {
-            await EmailService.sendContractCompletionEmail(
+            await ContractNotificationService.sendSignatureNotifications(
               contractSigner.contract,
-              contractSigner.contract.customer
+              signerId
             );
-          } catch (emailError) {
-            console.error("Error sending completion email:", emailError);
+          } catch (error) {
+            console.error("Error sending signature notifications:", error);
           }
         });
       }
@@ -1138,22 +1109,23 @@ class contractService {
     customerId,
   }) {
     // Tạo base query builder
-    const baseQueryBuilder = () => contractRepo
-      .createQueryBuilder("contract")
-      .leftJoin("contract.customer", "customer")
-      .leftJoin("contract.createdBy", "creator");
+    const baseQueryBuilder = () =>
+      contractRepo
+        .createQueryBuilder("contract")
+        .leftJoin("contract.customer", "customer")
+        .leftJoin("contract.createdBy", "creator");
 
     // Áp dụng các điều kiện filter
     const applyFilters = (qb) => {
       if (startTime) {
         const startDate = new Date(parseInt(startTime));
         if (isNaN(startDate.getTime())) {
-          console.error('Invalid start time:', startTime);
-          throw new Error('Invalid start time');
+          console.error("Invalid start time:", startTime);
+          throw new Error("Invalid start time");
         }
 
         // Nếu status là completed, filter theo completedAt
-        if (status === 'completed') {
+        if (status === "completed") {
           qb.andWhere("contract.completedAt >= :startDate", {
             startDate: startDate,
           });
@@ -1167,12 +1139,12 @@ class contractService {
       if (endTime) {
         const endDate = new Date(parseInt(endTime));
         if (isNaN(endDate.getTime())) {
-          console.error('Invalid end time:', endTime);
-          throw new Error('Invalid end time');
+          console.error("Invalid end time:", endTime);
+          throw new Error("Invalid end time");
         }
 
         // Nếu status là completed, filter theo completedAt
-        if (status === 'completed') {
+        if (status === "completed") {
           qb.andWhere("contract.completedAt <= :endDate", {
             endDate: endDate,
           });
@@ -1227,10 +1199,13 @@ class contractService {
         month: item.monthYear,
         count: parseInt(item.count),
       })),
-      timeRange: startTime && endTime ? {
-        start: new Date(startTime * 1000),
-        end: new Date(endTime * 1000),
-      } : null,
+      timeRange:
+        startTime && endTime
+          ? {
+              start: new Date(startTime * 1000),
+              end: new Date(endTime * 1000),
+            }
+          : null,
     };
 
     // Thêm thống kê về mối quan hệ người tạo - khách hàng nếu có
