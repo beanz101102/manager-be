@@ -78,15 +78,15 @@ class contractService {
           }
 
           // Gửi thông báo sau khi transaction hoàn thành
-          setImmediate(async () => {
-            try {
-              await ContractNotificationService.sendNewContractNotifications(
-                savedContract
-              );
-            } catch (error) {
-              console.error("Error sending notifications:", error);
-            }
-          });
+          // setImmediate(async () => {
+          //   try {
+          //     await ContractNotificationService.sendNewContractNotifications(
+          //       savedContract
+          //     );
+          //   } catch (error) {
+          //     console.error("Error sending notifications:", error);
+          //   }
+          // });
 
           return savedContract;
         }
@@ -239,7 +239,7 @@ class contractService {
           },
         ];
 
-        // Nếu có status khác, thêm ��iều kiện status
+        // Nếu có status khác, thêm điều kiện status
         if (status) {
           query.where = query.where.map((condition) => ({
             ...condition,
@@ -714,7 +714,7 @@ class contractService {
           contract.status = "pending_approval";
           await transactionalEntityManager.save(Contract, contract);
 
-          // Lấy thông tin người phê duyệt đầu tiên
+          // L��y thông tin người phê duyệt đầu tiên
           const firstApprovalStep = await transactionalEntityManager
             .getRepository(ApprovalTemplateStep)
             .findOne({
@@ -885,13 +885,22 @@ class contractService {
     });
   }
 
-  static async getContractStatistics() {
-    const stats = await contractRepo
+  static async getContractStatistics(userId?: number) {
+    // Tạo query builder cơ bản
+    let queryBuilder = contractRepo
       .createQueryBuilder("contract")
       .select("contract.status", "status")
-      .addSelect("COUNT(contract.id)", "count")
-      .groupBy("contract.status")
-      .getRawMany();
+      .addSelect("COUNT(contract.id)", "count");
+
+    // Nếu có userId, thêm điều kiện filter
+    if (userId) {
+      queryBuilder = queryBuilder
+        .leftJoin("contract.createdBy", "creator")
+        .where("creator.id = :userId", { userId });
+    }
+
+    // Thực hiện group by và lấy kết quả
+    const stats = await queryBuilder.groupBy("contract.status").getRawMany();
 
     // Khởi tạo object kết quả với giá trị mặc định là 0
     const result = {
@@ -916,29 +925,41 @@ class contractService {
       details: {
         draft: {
           count: result.draft,
-          percentage: ((result.draft / total) * 100).toFixed(1),
+          percentage:
+            total > 0 ? ((result.draft / total) * 100).toFixed(1) : "0.0",
         },
         pending_approval: {
           count: result.pending_approval,
-          percentage: ((result.pending_approval / total) * 100).toFixed(1),
+          percentage:
+            total > 0
+              ? ((result.pending_approval / total) * 100).toFixed(1)
+              : "0.0",
         },
         ready_to_sign: {
           count: result.ready_to_sign,
-          percentage: ((result.ready_to_sign / total) * 100).toFixed(1),
+          percentage:
+            total > 0
+              ? ((result.ready_to_sign / total) * 100).toFixed(1)
+              : "0.0",
         },
         cancelled: {
           count: result.cancelled,
-          percentage: ((result.cancelled / total) * 100).toFixed(1),
+          percentage:
+            total > 0 ? ((result.cancelled / total) * 100).toFixed(1) : "0.0",
         },
         completed: {
           count: result.completed,
-          percentage: ((result.completed / total) * 100).toFixed(1),
+          percentage:
+            total > 0 ? ((result.completed / total) * 100).toFixed(1) : "0.0",
         },
         rejected: {
           count: result.rejected,
-          percentage: ((result.rejected / total) * 100).toFixed(1),
+          percentage:
+            total > 0 ? ((result.rejected / total) * 100).toFixed(1) : "0.0",
         },
       },
+      filtered: userId ? true : false,
+      userId: userId || null,
     };
   }
 
@@ -1195,7 +1216,7 @@ class contractService {
         .leftJoin("contract.customer", "customer")
         .leftJoin("contract.createdBy", "creator");
 
-    // Áp dụng các điều kiện filter
+    // Áp dụng các điều ki���n filter
     const applyFilters = (qb) => {
       if (startTime) {
         const startDate = new Date(parseInt(startTime));

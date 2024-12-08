@@ -40,7 +40,6 @@ ContractRouter.post(
   upload.single("file"),
   contractController.updateContract
 );
-ContractRouter.post("/success", contractController.successContract);
 ContractRouter.post("/bulk-delete", contractController.deleteMultipleContracts);
 ContractRouter.post(
   "/rejected-contract",
@@ -56,7 +55,7 @@ ContractRouter.post(
 );
 ContractRouter.post("/submit", contractController.submitForApproval);
 ContractRouter.post("/cancel", contractController.cancelContracts);
-ContractRouter.get("/statistics", contractController.getContractStatistics);
+ContractRouter.post("/statistics", contractController.getContractStatistics);
 ContractRouter.get(
   "/customer-report",
   contractController.getCustomerContractReport
