@@ -9,7 +9,8 @@ class UserServices {
   static async generateCode(role: string): Promise<string> {
     let prefix: string;
     switch (role.toLowerCase()) {
-      case "employee" || "manager":
+      case "employee":
+      case "manager":
         prefix = "NV";
         break;
       case "customer":
