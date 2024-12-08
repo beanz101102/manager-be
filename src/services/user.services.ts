@@ -6,6 +6,39 @@ import { Department } from "../models/department.entity";
 let userRepo = dataSource.getRepository(User);
 
 class UserServices {
+  static async generateCode(role: string): Promise<string> {
+    let prefix: string;
+    switch (role.toLowerCase()) {
+      case "employee":
+        prefix = "NV";
+        break;
+      case "customer":
+        prefix = "KH";
+        break;
+      case "director":
+        prefix = "GD";
+        break;
+      default:
+        prefix = "USER";
+    }
+
+    // Tìm mã code cuối cùng với prefix tương ứng
+    const lastUser = await userRepo.findOne({
+      where: { code: Like(`${prefix}%`) },
+      order: { code: "DESC" },
+    });
+
+    let nextNumber = 1;
+    if (lastUser) {
+      // Lấy số từ mã code cuối cùng và tăng lên 1
+      const lastNumber = parseInt(lastUser.code.replace(prefix, ""));
+      nextNumber = lastNumber + 1;
+    }
+
+    // Format số với độ dài cố định (ví dụ: NV001, NV002,...)
+    return `${prefix}${nextNumber.toString().padStart(3, "0")}`;
+  }
+
   static async addUser(
     id,
     username,
@@ -26,8 +59,11 @@ class UserServices {
     role
   ) {
     const newUser = new User();
+    // Tự động generate code dựa trên role
+    const generatedCode = await this.generateCode(role);
+
     newUser.id = id;
-    newUser.code = code;
+    newUser.code = generatedCode; // Sử dụng code được generate
     newUser.fullName = fullName;
     newUser.gender = gender;
     newUser.dateOfBirth = dateOfBirth;

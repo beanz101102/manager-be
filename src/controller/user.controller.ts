@@ -12,7 +12,6 @@ class UserController {
       let username = req.body.username;
       let id = req.body.id;
       let email = req.body.email;
-      let code = req.body.code;
       let fullName = req.body.fullName;
       let gender = req.body.gender;
       let dateOfBirth = req.body.dateOfBirth;
@@ -32,7 +31,7 @@ class UserController {
         username,
         email,
         password,
-        code,
+        undefined,
         fullName,
         gender,
         dateOfBirth,
