@@ -31,7 +31,13 @@ class userSignatureController {
 
   async list(req, res) {
     try {
-      let userSignature = await UserSignatureService.listUserSignature();
+      const userId = req.query.userId;
+      
+      if (!userId) {
+        return res.status(401).json({ message: "User not found" });
+      }
+
+      let userSignature = await UserSignatureService.listUserSignature(userId);
       res.status(200).json(userSignature);
     } catch (error) {
       res.status(500).json({ message: error.message });

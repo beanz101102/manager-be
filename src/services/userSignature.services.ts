@@ -20,9 +20,12 @@ class UserSignatureService {
 
     await userSignatureRepo.save(userSignature);
   }
-  static async listUserSignature() {
+  static async listUserSignature(userId: number) {
     try {
       const userSignature = await userSignatureRepo.find({
+        where: {
+          user: { id: userId }
+        },
         relations: ["user", "user.department"],
         order: {
           createdAt: "DESC",
@@ -34,6 +37,7 @@ class UserSignatureService {
       throw new Error("Failed to fetch user signatures");
     }
   }
+
   static async detail(id) {
     const userSignature = await userSignatureRepo.findOne({
       relations: ["user", "user.department"],
