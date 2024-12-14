@@ -290,16 +290,16 @@ class ContractNotificationService {
         }
       } else if (status === "rejected") {
         // Xử lý từ chối
-        if (contract.createdBy.id !== approverId) {
+        // if (fullContract.createdBy.id !== approverId) {
           await NotificationService.createNotification(
-            contract.createdBy,
-            contract,
+            fullContract.createdBy,
+            fullContract,
             "contract_rejected",
-            `Hợp đồng ${contract.contractNumber} đã bị từ chối bởi ${
+            `Hợp đồng ${fullContract.contractNumber} đã bị từ chối bởi ${
               currentApprover.fullName
             }${comments ? `. Lý do: ${comments}` : ""}`
           );
-        }
+        // }
       }
     } catch (error) {
       console.error("Error in sendApprovalNotifications:", error);
