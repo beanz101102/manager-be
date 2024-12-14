@@ -199,7 +199,7 @@ class contractService {
         "contractSigners.signer",
         "approvalTemplate.steps",
       ],
-      where: [],
+      where: {},
       skip: skip,
       take: limit,
       order: {
@@ -210,73 +210,59 @@ class contractService {
     if (createdById) {
       if (status === "pending_approval") {
         // Chỉ lấy hợp đồng cần phê duyệt
-        query.where = [
-          {
-            status: "pending_approval",
-            approvalTemplate: {
-              steps: {
-                approver: { id: createdById },
-              },
+        query.where = {
+          status: "pending_approval",
+          approvalTemplate: {
+            steps: {
+              approver: { id: createdById },
             },
-          } as any,
-        ];
+          },
+        };
       } else if (status === "ready_to_sign") {
         // Chỉ lấy hợp đồng cần ký
-        query.where = [
-          {
-            status: "ready_to_sign",
-            contractSigners: {
-              signer: { id: createdById },
-              status: "pending",
-            },
-          } as any,
-        ];
+        query.where = {
+          status: "ready_to_sign",
+          contractSigners: {
+            signer: { id: createdById },
+            status: "pending",
+          },
+        };
       } else {
         // Mặc định: lấy hợp đồng user tạo
-        query.where = [
-          {
-            createdBy: { id: createdById },
-          },
-        ];
+        query.where = {
+          createdBy: { id: createdById },
+        };
 
         // Nếu có status khác, thêm điều kiện status
         if (status) {
-          query.where = query.where.map((condition) => ({
-            ...condition,
+          query.where = {
+            ...query.where,
             status: status,
-          }));
+          };
         }
       }
     } else {
-      query.where = [{}];
-
+      // Không cần khởi tạo where với object rỗng
       if (status) {
-        query.where = query.where.map((condition) => ({
-          ...condition,
+        query.where = {
+          ...query.where,
           status: status,
-        }));
+        };
       }
     }
 
     if (contractNumber) {
-      query.where = query.where.map((condition) => ({
-        ...condition,
+      query.where = {
+        ...query.where,
         contractNumber: Like(`%${contractNumber}%`),
-      }));
-    }
-
-    if (status) {
-      query.where = query.where.map((condition) => ({
-        ...condition,
-        status: status,
-      }));
+      };
     }
 
     if (customerId) {
-      query.where = query.where.map((condition) => ({
-        ...condition,
+      query.where = {
+        ...query.where,
         customer: { id: customerId },
-      }));
+      };
     }
 
     let [contracts, total] = await contractRepo.findAndCount(query);
@@ -714,7 +700,7 @@ class contractService {
           contract.status = "pending_approval";
           await transactionalEntityManager.save(Contract, contract);
 
-          // L��y thông tin người phê duyệt đầu tiên
+          // Lấy thông tin người phê duyệt đầu tiên
           const firstApprovalStep = await transactionalEntityManager
             .getRepository(ApprovalTemplateStep)
             .findOne({
@@ -1216,7 +1202,7 @@ class contractService {
         .leftJoin("contract.customer", "customer")
         .leftJoin("contract.createdBy", "creator");
 
-    // Áp dụng các điều ki���n filter
+    // Áp dụng các điều kiện filter
     const applyFilters = (qb) => {
       if (startTime) {
         const startDate = new Date(parseInt(startTime));
