@@ -1440,4 +1440,5 @@ export default contractService;
 interface FeedbackData {
   name: string;
   content: string;
+  tag: "revision_request" | "feedback";
 }
