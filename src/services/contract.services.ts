@@ -1317,7 +1317,6 @@ class contractService {
 
     return result;
   }
-
   static async addFeedback(contractId: number, feedbackData: FeedbackData) {
     try {
       const contract = await contractRepo.findOne({
@@ -1328,7 +1327,7 @@ class contractService {
         throw new Error("Contract not found");
       }
 
-      // Khởi tạo mảng feedback nếu chưa có
+      // Khởi tạo mảng feedback nếu là null
       if (!contract.feedback) {
         contract.feedback = [];
       }

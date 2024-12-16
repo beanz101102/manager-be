@@ -101,7 +101,7 @@ export class Contract {
   completedAt: Date;
 
   // Thêm cột feedback kiểu JSON để lưu array phản hồi
-  @Column("json", { nullable: true, default: "[]" })
+  @Column("json", { nullable: true })
   feedback: ContractFeedback[];
 }
 
