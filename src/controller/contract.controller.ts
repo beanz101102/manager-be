@@ -809,6 +809,70 @@ class contractController {
       });
     }
   }
+
+  async addFeedback(req, res) {
+    try {
+      const { contractId, name, content } = req.body;
+
+      // Validate input
+      if (!contractId || !name || !content) {
+        return res.status(400).json({
+          success: false,
+          message: "Contract ID, name and content are required",
+          required: ["contractId", "name", "content"],
+        });
+      }
+
+      // Validate content length
+      if (content.length < 10) {
+        return res.status(400).json({
+          success: false,
+          message: "Feedback content must be at least 10 characters long",
+        });
+      }
+
+      const result = await contractService.addFeedback(contractId, {
+        name,
+        content,
+      });
+
+      return res.status(200).json(result);
+    } catch (error) {
+      return res.status(500).json({
+        success: false,
+        message: error.message,
+      });
+    }
+  }
+
+  async getFeedback(req, res) {
+    try {
+      const { contractId } = req.params;
+
+      if (!contractId) {
+        return res.status(400).json({
+          success: false,
+          message: "Contract ID is required",
+        });
+      }
+
+      const result = await contractService.getFeedback(parseInt(contractId));
+
+      // Format response để trả về array feedback trực tiếp nếu cần
+      return res.status(200).json({
+        success: true,
+        contractId: result.data.contractId,
+        contractNumber: result.data.contractNumber,
+        totalFeedback: result.data.totalFeedback,
+        feedback: result.data.feedback, // Array of feedback
+      });
+    } catch (error) {
+      return res.status(500).json({
+        success: false,
+        message: error.message,
+      });
+    }
+  }
 }
 
 export default contractController;

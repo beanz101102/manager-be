@@ -431,8 +431,8 @@ class contractService {
             message:
               "Contract has been reset to draft status. Please update and submit for approval again.",
           },
-      };
-    }
+        };
+      }
 
       // 2. Lấy tất cả các steps theo thứ tự
       const templateSteps = await transactionalEntityManager
@@ -1317,6 +1317,87 @@ class contractService {
 
     return result;
   }
+
+  static async addFeedback(contractId: number, feedbackData: FeedbackData) {
+    try {
+      const contract = await contractRepo.findOne({
+        where: { id: contractId },
+      });
+
+      if (!contract) {
+        throw new Error("Contract not found");
+      }
+
+      // Khởi tạo mảng feedback nếu chưa có
+      if (!contract.feedback) {
+        contract.feedback = [];
+      }
+
+      // Thêm feedback mới vào mảng
+      const newFeedback = {
+        ...feedbackData,
+        createdAt: new Date(),
+      };
+
+      contract.feedback.push(newFeedback);
+
+      // Lưu contract đã cập nhật
+      await contractRepo.save(contract);
+
+      return {
+        success: true,
+        message: "Feedback added successfully",
+        data: {
+          contractId,
+          feedback: newFeedback,
+        },
+      };
+    } catch (error) {
+      throw new Error(`Failed to add feedback: ${error.message}`);
+    }
+  }
+
+  static async getFeedback(contractId: number) {
+    try {
+      const contract = await contractRepo.findOne({
+        where: { id: contractId },
+        select: ["id", "contractNumber", "feedback"], // Chỉ lấy các trường cần thiết
+      });
+
+      if (!contract) {
+        throw new Error("Contract not found");
+      }
+
+      // Đảm bảo feedback là một array và sắp xếp theo thời gian tạo mới nhất
+      const feedbackArray = Array.isArray(contract.feedback)
+        ? contract.feedback.sort(
+            (a, b) =>
+              new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+          )
+        : [];
+
+      return {
+        success: true,
+        data: {
+          contractId,
+          contractNumber: contract.contractNumber,
+          totalFeedback: feedbackArray.length,
+          feedback: feedbackArray.map((item) => ({
+            name: item.name,
+            content: item.content,
+            createdAt: new Date(item.createdAt).toISOString(),
+          })),
+        },
+      };
+    } catch (error) {
+      throw new Error(`Failed to get feedback: ${error.message}`);
+    }
+  }
 }
 
 export default contractService;
+
+interface FeedbackData {
+  name: string;
+  content: string;
+}

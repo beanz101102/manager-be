@@ -99,6 +99,10 @@ export class Contract {
   // Add this field in the Contract class
   @Column({ type: "timestamp", nullable: true })
   completedAt: Date;
+
+  // Thêm cột feedback kiểu JSON để lưu array phản hồi
+  @Column("json", { nullable: true, default: "[]" })
+  feedback: ContractFeedback[];
 }
 
 // Thêm entity mới cho người ký
@@ -132,4 +136,10 @@ export class ContractSigner {
 
   @Column({ type: "timestamp", nullable: true })
   signedAt: Date;
+}
+
+interface ContractFeedback {
+  name: string;
+  content: string;
+  createdAt: Date;
 }
