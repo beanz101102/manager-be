@@ -847,7 +847,7 @@ class contractController {
 
   async getFeedback(req, res) {
     try {
-      const { contractId } = req.params;
+      const { contractId } = req.body;
 
       if (!contractId) {
         return res.status(400).json({

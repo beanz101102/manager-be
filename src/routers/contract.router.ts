@@ -71,6 +71,6 @@ ContractRouter.get(
 ContractRouter.post("/send-otp", contractController.sendOTP);
 ContractRouter.post("/verify-otp", contractController.verifyOTP);
 ContractRouter.post("/add-feedback", contractController.addFeedback);
-ContractRouter.get("/get-feedback", contractController.getFeedback);
+ContractRouter.post("/get-feedback", contractController.getFeedback);
 
 export default ContractRouter;
