@@ -56,6 +56,14 @@ class contractService {
           contract.note = note;
           contract.pdfFilePath = pdfFilePath;
           contract.status = "draft";
+          contract.feedback = [
+            {
+              name: "new_contract",
+              content: note,
+              createdAt: new Date(),
+              tag: "new_contract",
+            },
+          ];
 
           // Lưu contract
           const savedContract = await contractRepo.save(contract);
