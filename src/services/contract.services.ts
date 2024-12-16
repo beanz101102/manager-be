@@ -58,7 +58,7 @@ class contractService {
           contract.status = "draft";
           contract.feedback = [
             {
-              name: "new_contract",
+              name: createdBy?.fullName,
               content: note,
               createdAt: new Date(),
               tag: "new_contract",
