@@ -42,6 +42,8 @@ class App {
           'https://app.phatdat.online',
           'http://localhost:3000',
           'http://127.0.0.1:3000',
+          'http://localhost:4000',
+          'http://127.0.0.1:4000',
           'https://contract-manager-five.vercel.app'
         ];
         console.log('Request from origin:', origin);
