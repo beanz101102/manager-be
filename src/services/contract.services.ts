@@ -813,7 +813,7 @@ class contractService {
           "contractApprovals",
           "contractApprovals.approver",
           "contractSigners",
-          "contractSigners.signer"
+          "contractSigners.signer",
         ],
       });
 
@@ -854,15 +854,15 @@ class contractService {
           const usersToNotify = new Set<User>();
 
           // Add approvers who have approved the contract
-          contract.contractApprovals?.forEach(approval => {
-            if (approval.status === 'approved') {
+          contract.contractApprovals?.forEach((approval) => {
+            if (approval.status === "approved") {
               usersToNotify.add(approval.approver);
             }
           });
 
           // Add signers who have signed the contract
-          contract.contractSigners?.forEach(signer => {
-            if (signer.status === 'signed') {
+          contract.contractSigners?.forEach((signer) => {
+            if (signer.status === "signed") {
               usersToNotify.add(signer.signer);
             }
           });
@@ -870,18 +870,19 @@ class contractService {
           // Send notifications
           setImmediate(async () => {
             try {
-              const notificationPromises = Array.from(usersToNotify).map(user => 
-                NotificationService.createNotification(
-                  user,
-                  contract,
-                  'contract_cancelled',
-                  `Hợp đồng ${contract.contractNumber} đã bị hủy bởi ${contract.createdBy.fullName}. Lý do: ${reason}`
-                )
+              const notificationPromises = Array.from(usersToNotify).map(
+                (user) =>
+                  ContractNotificationService.sendContractNotifications(
+                    contract,
+                    [user],
+                    "CONTRACT_CANCELLED",
+                    `Hợp đồng ${contract.contractNumber} đã bị hủy bởi ${contract.createdBy.fullName}. Lý do: ${reason}`
+                  )
               );
 
               await Promise.all(notificationPromises);
             } catch (error) {
-              console.error('Error sending cancellation notifications:', error);
+              console.error("Error sending cancellation notifications:", error);
             }
           });
 

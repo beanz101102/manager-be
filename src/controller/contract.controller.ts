@@ -7,6 +7,7 @@ import { Contract } from "../models/contract.entity";
 import { Redis } from "ioredis";
 import EmailService from "../services/email.service";
 import NotificationService from "../services/notification.services";
+import ContractNotificationService from "../services/contract-notification.service";
 const path = require("path");
 
 let approvalFlowRepo = dataSource.getRepository(ApprovalFlow);
@@ -848,10 +849,10 @@ class contractController {
           });
 
           if (contract && contract.createdBy) {
-            await NotificationService.createNotification(
-              contract.createdBy,
+            await ContractNotificationService.sendContractNotifications(
               contract,
-              "contract_feedback",
+              [contract.createdBy],
+              "CONTRACT_FEEDBACK",
               `Hợp đồng ${
                 contract.contractNumber
               } có phản hồi mới từ ${name}: "${content.substring(0, 50)}${
