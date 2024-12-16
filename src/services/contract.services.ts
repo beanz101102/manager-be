@@ -717,7 +717,7 @@ class contractService {
                   firstApprovalStep.approver,
                   contract,
                   "contract_approval",
-                  `Hợp đồng ${contract.contractNumber} đang chờ bạn phê duyệt`
+                  `H���p đồng ${contract.contractNumber} đang chờ bạn phê duyệt`
                 );
               } catch (error) {
                 console.error("Error sending notification:", error);
@@ -853,38 +853,55 @@ class contractService {
           // Collect unique users who need to be notified
           const usersToNotify = new Set<User>();
 
+          console.log("Contract Approvals:", contract.contractApprovals);
+          console.log("Contract Signers:", contract.contractSigners);
+
           // Add approvers who have approved the contract
-          contract.contractApprovals?.forEach((approval) => {
-            if (approval.status === "approved") {
-              usersToNotify.add(approval.approver);
-            }
-          });
+          if (
+            contract.contractApprovals &&
+            contract.contractApprovals.length > 0
+          ) {
+            contract.contractApprovals.forEach((approval) => {
+              if (approval.status === "approved" && approval.approver) {
+                console.log(
+                  "Adding approver to notifications:",
+                  approval.approver
+                );
+                usersToNotify.add(approval.approver);
+              }
+            });
+          }
 
           // Add signers who have signed the contract
-          contract.contractSigners?.forEach((signer) => {
-            if (signer.status === "signed") {
-              usersToNotify.add(signer.signer);
-            }
-          });
+          if (contract.contractSigners && contract.contractSigners.length > 0) {
+            contract.contractSigners.forEach((signer) => {
+              if (signer.status === "signed" && signer.signer) {
+                console.log("Adding signer to notifications:", signer.signer);
+                usersToNotify.add(signer.signer);
+              }
+            });
+          }
 
-          // Send notifications
-          setImmediate(async () => {
-            try {
-              const notificationPromises = Array.from(usersToNotify).map(
-                (user) =>
-                  ContractNotificationService.sendContractNotifications(
-                    contract,
-                    [user],
-                    "CONTRACT_CANCELLED",
-                    `Hợp đồng ${contract.contractNumber} đã bị hủy bởi ${contract.createdBy.fullName}. Lý do: ${reason}`
-                  )
-              );
+          console.log("Users to notify:", Array.from(usersToNotify));
 
-              await Promise.all(notificationPromises);
-            } catch (error) {
-              console.error("Error sending cancellation notifications:", error);
-            }
-          });
+          // Gửi notifications ngay lập tức thay vì sử dụng setImmediate
+          try {
+            const notificationPromises = Array.from(usersToNotify).map((user) =>
+              ContractNotificationService.sendContractNotifications(
+                contract,
+                [user],
+                "CONTRACT_CANCELLED",
+                `Hợp đồng ${contract.contractNumber} đã bị hủy bởi ${contract.createdBy.fullName}. Lý do: ${reason}`
+              )
+            );
+
+            await Promise.all(notificationPromises);
+            console.log(
+              `Successfully sent ${notificationPromises.length} notifications`
+            );
+          } catch (error) {
+            console.error("Error sending cancellation notifications:", error);
+          }
 
           results.success.push({
             contractId: contract.id,
