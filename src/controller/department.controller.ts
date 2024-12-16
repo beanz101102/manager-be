@@ -9,8 +9,8 @@ class departmentController {
 
       let department = await DepartmentService.addDepartment(
         id,
+        departmentName,
         description,
-        departmentName
       );
       res.status(200).json(department);
     } catch (e) {
