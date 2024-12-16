@@ -1452,6 +1452,7 @@ class contractService {
             name: item.name,
             content: item.content,
             createdAt: new Date(item.createdAt).toISOString(),
+            tag: item.tag,
           })),
         },
       };
@@ -1466,5 +1467,5 @@ export default contractService;
 interface FeedbackData {
   name: string;
   content: string;
-  tag: "revision_request" | "feedback";
+  tag: "revision_request" | "feedback" | "approval_request" | "new_contract";
 }
