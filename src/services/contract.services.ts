@@ -717,7 +717,7 @@ class contractService {
                   firstApprovalStep.approver,
                   contract,
                   "contract_approval",
-                  `H���p đồng ${contract.contractNumber} đang chờ bạn phê duyệt`
+                  `Hợp đồng ${contract.contractNumber} đang chờ bạn phê duyệt`
                 );
               } catch (error) {
                 console.error("Error sending notification:", error);
