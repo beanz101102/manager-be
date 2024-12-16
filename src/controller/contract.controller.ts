@@ -6,6 +6,7 @@ import { ContractSignature } from "../models/contract_signature.entity";
 import { Contract } from "../models/contract.entity";
 import { Redis } from "ioredis";
 import EmailService from "../services/email.service";
+import NotificationService from "../services/notification.services";
 const path = require("path");
 
 let approvalFlowRepo = dataSource.getRepository(ApprovalFlow);
@@ -812,7 +813,7 @@ class contractController {
 
   async addFeedback(req, res) {
     try {
-      const { contractId, name, content } = req.body;
+      const { contractId, name, content, tag } = req.body;
 
       // Validate input
       if (!contractId || !name || !content) {
@@ -834,9 +835,34 @@ class contractController {
       const result = await contractService.addFeedback(contractId, {
         name,
         content,
+        tag,
       });
 
-      return res.status(200).json(result);
+      res.status(200).json(result);
+
+      setImmediate(async () => {
+        try {
+          const contract = await contractRepo.findOne({
+            where: { id: contractId },
+            relations: ["createdBy"],
+          });
+
+          if (contract && contract.createdBy) {
+            await NotificationService.createNotification(
+              contract.createdBy,
+              contract,
+              "contract_feedback",
+              `Hợp đồng ${
+                contract.contractNumber
+              } có phản hồi mới từ ${name}: "${content.substring(0, 50)}${
+                content.length > 50 ? "..." : ""
+              }"`
+            );
+          }
+        } catch (error) {
+          console.error("Error sending feedback notification:", error);
+        }
+      });
     } catch (error) {
       return res.status(500).json({
         success: false,

@@ -142,4 +142,5 @@ interface ContractFeedback {
   name: string;
   content: string;
   createdAt: Date;
+  tag: "revision_request" | "feedback";
 }
