@@ -805,10 +805,16 @@ class contractService {
     reason: string
   ) {
     return await dataSource.transaction(async (transactionalEntityManager) => {
-      // Get all contracts to cancel
+      // Get all contracts to cancel with necessary relations
       const contracts = await contractRepo.find({
         where: { id: In(contractIds) },
-        relations: ["createdBy"],
+        relations: [
+          "createdBy",
+          "contractApprovals",
+          "contractApprovals.approver",
+          "contractSigners",
+          "contractSigners.signer"
+        ],
       });
 
       if (contracts.length === 0) {
@@ -843,6 +849,41 @@ class contractService {
           contract.status = "cancelled";
           contract.cancelReason = reason;
           await transactionalEntityManager.save(Contract, contract);
+
+          // Collect unique users who need to be notified
+          const usersToNotify = new Set<User>();
+
+          // Add approvers who have approved the contract
+          contract.contractApprovals?.forEach(approval => {
+            if (approval.status === 'approved') {
+              usersToNotify.add(approval.approver);
+            }
+          });
+
+          // Add signers who have signed the contract
+          contract.contractSigners?.forEach(signer => {
+            if (signer.status === 'signed') {
+              usersToNotify.add(signer.signer);
+            }
+          });
+
+          // Send notifications
+          setImmediate(async () => {
+            try {
+              const notificationPromises = Array.from(usersToNotify).map(user => 
+                NotificationService.createNotification(
+                  user,
+                  contract,
+                  'contract_cancelled',
+                  `Hợp đồng ${contract.contractNumber} đã bị hủy bởi ${contract.createdBy.fullName}. Lý do: ${reason}`
+                )
+              );
+
+              await Promise.all(notificationPromises);
+            } catch (error) {
+              console.error('Error sending cancellation notifications:', error);
+            }
+          });
 
           results.success.push({
             contractId: contract.id,
