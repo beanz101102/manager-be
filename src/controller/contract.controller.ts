@@ -852,7 +852,7 @@ class contractController {
             await ContractNotificationService.sendContractNotifications(
               contract,
               [contract.createdBy],
-              "CONTRACT_FEEDBACK",
+              "contract_feedback",
               `Hợp đồng ${
                 contract.contractNumber
               } có phản hồi mới từ ${name}: "${content.substring(0, 50)}${

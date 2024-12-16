@@ -31,6 +31,8 @@ export class Notification {
       "contract_modified", // Hợp đồng được chỉnh sửa
       "contract_commented", // Hợp đồng có nhận xét mới
       "contract_to_sign", // Cần ký hợp đồng
+      "contract_cancelled", // Hợp đồng đã bị hủy
+      "contract_feedback", // Hợp đồng có phản hồi mới
     ],
   })
   type: string;

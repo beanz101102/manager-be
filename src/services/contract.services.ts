@@ -890,7 +890,7 @@ class contractService {
               ContractNotificationService.sendContractNotifications(
                 contract,
                 [user],
-                "CONTRACT_CANCELLED",
+                "contract_cancelled",
                 `Hợp đồng ${contract.contractNumber} đã bị hủy bởi ${contract.createdBy.fullName}. Lý do: ${reason}`
               )
             );
