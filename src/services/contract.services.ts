@@ -434,7 +434,7 @@ class contractService {
         };
       }
 
-      // 2. Lấy tất cả các steps theo thứ tự
+      // 2. Lấy tất cả các steps theo th�� tự
       const templateSteps = await transactionalEntityManager
         .createQueryBuilder(ApprovalTemplateStep, "step")
         .where("step.templateId = :templateId", {
@@ -1097,8 +1097,8 @@ class contractService {
     };
   }
 
-  static async getCustomerContractReport() {
-    const report = await contractRepo
+  static async getCustomerContractReport({ startTime, endTime, customerId }) {
+    let queryBuilder = contractRepo
       .createQueryBuilder("contract")
       .leftJoin("contract.customer", "customer")
       .select([
@@ -1111,12 +1111,34 @@ class contractService {
         `COUNT(CASE WHEN contract.status = 'pending_approval' THEN 1 END) as pendingContracts`,
         `COUNT(CASE WHEN contract.status = 'ready_to_sign' THEN 1 END) as readyToSignContracts`,
         `COUNT(CASE WHEN contract.status = 'rejected' THEN 1 END) as rejectedContracts`,
-      ])
+      ]);
+
+    // Thêm điều kiện filter theo thời gian
+    if (startTime) {
+      queryBuilder = queryBuilder.andWhere("contract.updatedAt >= :startTime", {
+        startTime: new Date(startTime),
+      });
+    }
+
+    if (endTime) {
+      queryBuilder = queryBuilder.andWhere("contract.updatedAt <= :endTime", {
+        endTime: new Date(endTime),
+      });
+    }
+
+    // Thêm điều kiện filter theo customerId
+    if (customerId) {
+      queryBuilder = queryBuilder.andWhere("customer.id = :customerId", {
+        customerId,
+      });
+    }
+
+    const report = await queryBuilder
       .groupBy("customer.id")
       .addGroupBy("customer.fullName")
       .getRawMany();
 
-    // Tính toán tỷ lệ phần trăm và format lại dữ liệu
+    // Phần còn lại của code giữ nguyên như cũ
     const formattedReport = report.map((customer) => ({
       customerId: customer.customerId,
       customerName: customer.customerName,
@@ -1173,7 +1195,7 @@ class contractService {
       },
     }));
 
-    // Tính tổng số liệu
+    // Phần tính tổng số liệu giữ nguyên
     const totals = formattedReport.reduce(
       (acc, curr) => {
         acc.totalContracts += curr.statistics.total;

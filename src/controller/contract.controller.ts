@@ -704,8 +704,14 @@ class contractController {
   }
   async getCustomerContractReport(req, res) {
     try {
-      const report = await contractService.getCustomerContractReport();
-
+      const { startTime, endTime, customerId } = req.query;
+  
+      const report = await contractService.getCustomerContractReport({
+        startTime: startTime ? Number(startTime) : undefined,
+        endTime: endTime ? Number(endTime) : undefined,
+        customerId: customerId ? Number(customerId) : undefined,
+      });
+  
       return res.status(200).json({
         success: true,
         data: report,
