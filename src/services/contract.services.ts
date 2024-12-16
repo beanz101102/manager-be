@@ -377,6 +377,63 @@ class contractService {
 
       if (!contract) throw new Error("Contract not found");
 
+      if (status === "rejected") {
+        // Cập nhật trạng thái contract về draft để user có thể sửa
+        await transactionalEntityManager.update(Contract, contractId, {
+          status: "rejected",
+        });
+
+        // Xóa tất cả approvals hiện tại
+        await transactionalEntityManager
+          .createQueryBuilder()
+          .delete()
+          .from(ContractApproval)
+          .where("contractId = :contractId", { contractId })
+          .execute();
+
+        // Reset signatures
+        await transactionalEntityManager
+          .createQueryBuilder()
+          .update(ContractSigner)
+          .set({ status: "pending", signedAt: null })
+          .where("contractId = :contractId", { contractId })
+          .execute();
+
+        // Thông báo cho người tạo nếu họ không phải là khách hàng
+        if (contract.createdBy) {
+          await ContractNotificationService.sendApprovalNotifications(
+            contract,
+            userId,
+            "rejected",
+            comments
+          );
+        }
+
+        setImmediate(async () => {
+          try {
+            await ContractNotificationService.sendApprovalNotifications(
+              contract,
+              userId,
+              "rejected",
+              comments
+            );
+          } catch (error) {
+            console.error("Error sending rejection notifications:", error);
+          }
+        });
+
+        return {
+          success: true,
+          message: "Contract rejected successfully",
+          data: {
+            contractId,
+            status: "draft",
+            message:
+              "Contract has been reset to draft status. Please update and submit for approval again.",
+          },
+      };
+    }
+
       // 2. Lấy tất cả các steps theo thứ tự
       const templateSteps = await transactionalEntityManager
         .createQueryBuilder(ApprovalTemplateStep, "step")
@@ -438,63 +495,6 @@ class contractService {
       }
 
       // Nếu đã qua được tất cả các kiểm tra, tiếp tục xử lý approval
-      if (status === "rejected") {
-        // Cập nhật trạng thái contract về draft để user có thể sửa
-        await transactionalEntityManager.update(Contract, contractId, {
-          status: "rejected",
-        });
-
-        // Xóa tất cả approvals hiện tại
-        await transactionalEntityManager
-          .createQueryBuilder()
-          .delete()
-          .from(ContractApproval)
-          .where("contractId = :contractId", { contractId })
-          .execute();
-
-        // Reset signatures
-        await transactionalEntityManager
-          .createQueryBuilder()
-          .update(ContractSigner)
-          .set({ status: "pending", signedAt: null })
-          .where("contractId = :contractId", { contractId })
-          .execute();
-
-        // Thông báo cho người tạo nếu họ không phải là khách hàng
-        if (contract.createdBy) {
-          await ContractNotificationService.sendApprovalNotifications(
-            contract,
-            userId,
-            "rejected",
-            comments
-          );
-        }
-
-        setImmediate(async () => {
-          try {
-            await ContractNotificationService.sendApprovalNotifications(
-              contract,
-              userId,
-              "rejected",
-              comments
-            );
-          } catch (error) {
-            console.error("Error sending rejection notifications:", error);
-          }
-        });
-
-        return {
-          success: true,
-          message: "Contract rejected successfully",
-          data: {
-            contractId,
-            status: "draft",
-            message:
-              "Contract has been reset to draft status. Please update and submit for approval again.",
-          },
-        };
-      }
-
       // Tạo approval mới
       const newApproval = transactionalEntityManager.create(ContractApproval, {
         contract: { id: contractId },
