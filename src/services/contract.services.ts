@@ -1283,16 +1283,13 @@ class contractService {
           throw new Error("Invalid start time");
         }
 
-        // Nếu status là completed, filter theo completedAt
-        if (status === "completed") {
-          qb.andWhere("contract.completedAt >= :startDate", {
-            startDate: startDate,
-          });
-        } else {
-          qb.andWhere("contract.createdAt >= :startDate", {
-            startDate: startDate,
-          });
-        }
+        // Sửa lại phần filter theo thời gian
+        qb.andWhere(
+          status === "completed" 
+            ? "COALESCE(contract.completedAt, contract.createdAt) >= :startDate"
+            : "contract.createdAt >= :startDate",
+          { startDate: startDate }
+        );
       }
 
       if (endTime) {
@@ -1302,18 +1299,16 @@ class contractService {
           throw new Error("Invalid end time");
         }
 
-        // Nếu status là completed, filter theo completedAt
-        if (status === "completed") {
-          qb.andWhere("contract.completedAt <= :endDate", {
-            endDate: endDate,
-          });
-        } else {
-          qb.andWhere("contract.createdAt <= :endDate", {
-            endDate: endDate,
-          });
-        }
+        // Sửa lại phần filter theo thời gian
+        qb.andWhere(
+          status === "completed"
+            ? "COALESCE(contract.completedAt, contract.createdAt) <= :endDate"
+            : "contract.createdAt <= :endDate",
+          { endDate: endDate }
+        );
       }
 
+      // Thêm điều kiện status trước các điều kiện thời gian
       if (status) {
         qb.andWhere("contract.status = :status", { status });
       }
