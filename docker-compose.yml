@@ -76,7 +76,7 @@ services:
       - contract-network
       - nginx-proxy
     volumes:
-      - ./uploads:/usr/src/app/uploads
+      - uploads_data:/usr/src/app/uploads
       - /usr/src/app/node_modules
 
   nginx:
@@ -87,7 +87,7 @@ services:
       - "80"
     volumes:
       - ./nginx.conf:/etc/nginx/conf.d/default.conf
-      - ./uploads:/usr/src/app/uploads
+      - uploads_data:/usr/src/app/uploads
     depends_on:
       - app
     networks:
@@ -97,6 +97,7 @@ services:
 volumes:
   mysql_data:
   redis_data:
+  uploads_data:
 
 networks:
   contract-network:

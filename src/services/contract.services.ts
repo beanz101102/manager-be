@@ -442,7 +442,7 @@ class contractService {
         };
       }
 
-      // 2. Lấy tất cả các steps theo th�� tự
+      // 2. Lấy tất cả các steps theo thứ tự
       const templateSteps = await transactionalEntityManager
         .createQueryBuilder(ApprovalTemplateStep, "step")
         .where("step.templateId = :templateId", {
@@ -939,38 +939,31 @@ class contractService {
   }
 
   static async getContractStatistics(userId?: number) {
-    // Tạo query builder cơ bản
     let queryBuilder = contractRepo
       .createQueryBuilder("contract")
+      .leftJoin("contract.createdBy", "creator")
       .select("contract.status", "status")
-      .addSelect("COUNT(contract.id)", "count");
+      .addSelect("COUNT(DISTINCT contract.id)", "count");
 
-    // Nếu có userId, thêm điều kiện filter
     if (userId) {
-      queryBuilder = queryBuilder
-        .leftJoin("contract.createdBy", "creator")
-        .where("creator.id = :userId", { userId });
+      queryBuilder = queryBuilder.where("creator.id = :userId", { userId });
     }
 
-    // Thực hiện group by và lấy kết quả
     const stats = await queryBuilder.groupBy("contract.status").getRawMany();
-
-    // Khởi tạo object kết quả với giá trị mặc định là 0
+    console.log('stats',stats);
     const result = {
-      draft: 0, // Hợp đồng đã soạn
-      pending_approval: 0, // Hợp đồng chờ duyệt
-      ready_to_sign: 0, // Hợp đồng chờ ký
-      cancelled: 0, // Hợp đồng bị hủy
-      completed: 0, // Hợp đồng đã hoàn thành
-      rejected: 0, // Hợp đồng bị từ chối
+      draft: 0,
+      pending_approval: 0,
+      ready_to_sign: 0,
+      cancelled: 0,
+      completed: 0,
+      rejected: 0,
     };
 
-    // Cập nhật số lượng từ kết quả query
     stats.forEach((item) => {
       result[item.status] = parseInt(item.count);
     });
 
-    // Tính tổng số hợp đồng
     const total = Object.values(result).reduce((sum, count) => sum + count, 0);
 
     return {
@@ -978,37 +971,27 @@ class contractService {
       details: {
         draft: {
           count: result.draft,
-          percentage:
-            total > 0 ? ((result.draft / total) * 100).toFixed(1) : "0.0",
+          percentage: total > 0 ? ((result.draft / total) * 100).toFixed(1) : "0.0",
         },
         pending_approval: {
           count: result.pending_approval,
-          percentage:
-            total > 0
-              ? ((result.pending_approval / total) * 100).toFixed(1)
-              : "0.0",
+          percentage: total > 0 ? ((result.pending_approval / total) * 100).toFixed(1) : "0.0",
         },
         ready_to_sign: {
           count: result.ready_to_sign,
-          percentage:
-            total > 0
-              ? ((result.ready_to_sign / total) * 100).toFixed(1)
-              : "0.0",
+          percentage: total > 0 ? ((result.ready_to_sign / total) * 100).toFixed(1) : "0.0",
         },
         cancelled: {
           count: result.cancelled,
-          percentage:
-            total > 0 ? ((result.cancelled / total) * 100).toFixed(1) : "0.0",
+          percentage: total > 0 ? ((result.cancelled / total) * 100).toFixed(1) : "0.0",
         },
         completed: {
           count: result.completed,
-          percentage:
-            total > 0 ? ((result.completed / total) * 100).toFixed(1) : "0.0",
+          percentage: total > 0 ? ((result.completed / total) * 100).toFixed(1) : "0.0",
         },
         rejected: {
           count: result.rejected,
-          percentage:
-            total > 0 ? ((result.rejected / total) * 100).toFixed(1) : "0.0",
+          percentage: total > 0 ? ((result.rejected / total) * 100).toFixed(1) : "0.0",
         },
       },
       filtered: userId ? true : false,
