@@ -17,11 +17,12 @@ class ApprovalFlowController {
 
   async createTemplateWithSteps(req, res) {
     try {
-      const { name, steps, id } = req.body;
+      const { name, steps, id, usageType } = req.body;
       const template = await ApprovalFlowServices.createTemplateWithSteps(
         name,
         id,
-        steps
+        steps,
+        usageType
       );
       res.status(200).json(template);
     } catch (e) {

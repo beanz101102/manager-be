@@ -123,7 +123,8 @@ class ApprovalFlowServices {
   static async createTemplateWithSteps(
     name: string,
     createdById: number,
-    steps: { departmentId: number; approverId: number; stepOrder: number }[]
+    steps: { departmentId: number; approverId: number; stepOrder: number }[],
+    usageType: "single" | "multiple"
   ) {
     // Check if template with same name already exists
     const existingTemplate = await templateRepo.findOne({
@@ -137,6 +138,7 @@ class ApprovalFlowServices {
     const template = new ApprovalTemplate();
     template.name = name;
     template.createdById = createdById;
+    template.usageType = usageType;
     const savedTemplate = await templateRepo.save(template);
 
     const stepEntities = steps.map((stepData) => {
@@ -169,9 +171,9 @@ class ApprovalFlowServices {
 
     // Kiểm tra template name tồn tại, loại trừ template hiện tại
     const existingTemplate = await templateRepo.findOne({
-      where: { 
+      where: {
         name,
-        id: Not(id)
+        id: Not(id),
       },
     });
 
@@ -180,7 +182,7 @@ class ApprovalFlowServices {
     }
 
     // Kiểm tra người duyệt trùng
-    const approverIds = steps.map(step => step.approverId);
+    const approverIds = steps.map((step) => step.approverId);
     const uniqueApproverIds = new Set(approverIds);
     if (approverIds.length !== uniqueApproverIds.size) {
       throw new Error("Duplicate approvers are not allowed in the template");
@@ -191,12 +193,14 @@ class ApprovalFlowServices {
 
     // Lấy tất cả các step hiện tại
     const existingSteps = await stepRepo.find({
-      where: { template: { id } }
+      where: { template: { id } },
     });
 
     // Xóa các step không còn trong danh sách mới
-    const newStepIds = steps.filter(s => s.id).map(s => s.id);
-    const stepsToRemove = existingSteps.filter(step => !newStepIds.includes(step.id));
+    const newStepIds = steps.filter((s) => s.id).map((s) => s.id);
+    const stepsToRemove = existingSteps.filter(
+      (step) => !newStepIds.includes(step.id)
+    );
     if (stepsToRemove.length > 0) {
       await stepRepo.remove(stepsToRemove);
     }
@@ -205,7 +209,7 @@ class ApprovalFlowServices {
     const stepEntities = await Promise.all(
       steps.map(async (stepData) => {
         let step;
-        
+
         if (stepData.id) {
           // Cập nhật step hiện có
           step = await stepRepo.findOneBy({ id: stepData.id });

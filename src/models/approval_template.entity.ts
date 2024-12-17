@@ -46,4 +46,11 @@ export class ApprovalTemplate {
     default: "active",
   })
   status: "active" | "inactive" | "deleted";
+
+  @Column({
+    type: "enum",
+    enum: ["single", "multiple"],
+    default: "single",
+  })
+  usageType: "single" | "multiple"; // Phân biệt template dùng 1 lần hay nhiều lần
 }
