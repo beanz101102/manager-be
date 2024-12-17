@@ -601,7 +601,10 @@ class contractController {
   }
   async getContractStatistics(req, res) {
     try {
-      const stats = await contractService.getContractStatistics();
+      const { userId } = req.body;
+      const stats = await contractService.getContractStatistics(
+        userId ? parseInt(userId) : undefined
+      );
       return res.status(200).json(stats);
     } catch (e) {
       return res.status(500).json({

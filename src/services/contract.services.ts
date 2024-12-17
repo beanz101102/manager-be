@@ -950,7 +950,7 @@ class contractService {
     }
 
     const stats = await queryBuilder.groupBy("contract.status").getRawMany();
-    console.log('stats',stats);
+    console.log('stats',stats, userId);
     const result = {
       draft: 0,
       pending_approval: 0,
