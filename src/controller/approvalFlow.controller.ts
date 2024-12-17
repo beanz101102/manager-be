@@ -3,8 +3,9 @@ import ApprovalFlowServices from "../services/approvalFlow.services";
 class ApprovalFlowController {
   async listApprovalFlow(req, res) {
     try {
-      const searchName = req.query.name;
-      const userId = req.query.userId;
+      const { searchName, userId } = req.body;
+      // const searchName = req.query.name;
+      // const userId = req.query.userId;
       const templates = await ApprovalFlowServices.listApprovalFlow(
         searchName,
         userId
