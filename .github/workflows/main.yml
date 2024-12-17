@@ -42,7 +42,7 @@ jobs:
             docker-compose down && \
             
             echo 'Cleaning workspace...' && \
-            git clean -fd && \
+            git clean -fd -e uploads && \
             git checkout prod && \
             git fetch origin prod && \
             git reset --hard origin/prod && \
