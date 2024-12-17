@@ -941,7 +941,7 @@ class contractService {
   static async getContractStatistics(userId?: number) {
     let queryBuilder = contractRepo
       .createQueryBuilder("contract")
-      .leftJoin("contract.createdBy", "creator")
+      .leftJoin("contract.createdById", "creator")
       .select("contract.status", "status")
       .addSelect("COUNT(DISTINCT contract.id)", "count");
 
