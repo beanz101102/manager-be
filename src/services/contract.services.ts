@@ -950,7 +950,7 @@ class contractService {
     }
 
     const stats = await queryBuilder.groupBy("contract.status").getRawMany();
-    console.log('stats',stats);
+    console.log('stats',stats, userId);
     const result = {
       draft: 0,
       pending_approval: 0,
@@ -1283,9 +1283,10 @@ class contractService {
           throw new Error("Invalid start time");
         }
 
-        // Nếu status là completed, filter theo completedAt
+        // Nếu có status completed thì chỉ filter theo completedAt
+        // Nếu không có status hoặc status khác completed thì xem xét cả hai trường hợp
         if (status === "completed") {
-          qb.andWhere("contract.completedAt >= :startDate", {
+          qb.andWhere("COALESCE(contract.completedAt, contract.createdAt) >= :startDate", {
             startDate: startDate,
           });
         } else {
@@ -1302,9 +1303,9 @@ class contractService {
           throw new Error("Invalid end time");
         }
 
-        // Nếu status là completed, filter theo completedAt
+        // Tương tự với endTime
         if (status === "completed") {
-          qb.andWhere("contract.completedAt <= :endDate", {
+          qb.andWhere("COALESCE(contract.completedAt, contract.createdAt) <= :endDate", {
             endDate: endDate,
           });
         } else {
@@ -1314,6 +1315,7 @@ class contractService {
         }
       }
 
+      // Áp dụng filter status nếu có
       if (status) {
         qb.andWhere("contract.status = :status", { status });
       }
