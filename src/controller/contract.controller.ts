@@ -8,6 +8,7 @@ import { Redis } from "ioredis";
 import EmailService from "../services/email.service";
 import NotificationService from "../services/notification.services";
 import ContractNotificationService from "../services/contract-notification.service";
+import { IsNull } from "typeorm";
 const path = require("path");
 
 let approvalFlowRepo = dataSource.getRepository(ApprovalFlow);
@@ -519,7 +520,7 @@ class contractController {
         approverId
       );
 
-      // Kiểm tra kết quả t� service
+      // Kiểm tra kết quả từ service
       if (result.data.failedContracts.length > 0) {
         return res.status(400).json({
           success: false,
@@ -708,13 +709,13 @@ class contractController {
   async getCustomerContractReport(req, res) {
     try {
       const { startTime, endTime, customerId } = req.query;
-  
+
       const report = await contractService.getCustomerContractReport({
         startTime: startTime ? Number(startTime) : undefined,
         endTime: endTime ? Number(endTime) : undefined,
         customerId: customerId ? Number(customerId) : undefined,
       });
-  
+
       return res.status(200).json({
         success: true,
         data: report,
@@ -901,6 +902,123 @@ class contractController {
         contractNumber: result.data.contractNumber,
         totalFeedback: result.data.totalFeedback,
         feedback: result.data.feedback, // Array of feedback
+      });
+    } catch (error) {
+      return res.status(500).json({
+        success: false,
+        message: error.message,
+      });
+    }
+  }
+
+  async updateContractStatus(req, res) {
+    try {
+      const { contractId, status } = req.body;
+
+      // Validate required fields
+      if (!contractId || !status) {
+        return res.status(400).json({
+          success: false,
+          message: "Contract ID and status are required",
+        });
+      }
+
+      // Validate status enum
+      const validStatuses = [
+        "draft",
+        "pending_approval",
+        "rejected",
+        "ready_to_sign",
+        "completed",
+        "cancelled",
+      ];
+
+      if (!validStatuses.includes(status)) {
+        return res.status(400).json({
+          success: false,
+          message: `Invalid status. Must be one of: ${validStatuses.join(
+            ", "
+          )}`,
+        });
+      }
+
+      // Update contract status
+      const result = await contractRepo.update(contractId, { status });
+
+      if (result.affected === 0) {
+        return res.status(404).json({
+          success: false,
+          message: "Contract not found",
+        });
+      }
+
+      return res.status(200).json({
+        success: true,
+        message: "Contract status updated successfully",
+        data: {
+          contractId,
+          newStatus: status,
+        },
+      });
+    } catch (error) {
+      return res.status(500).json({
+        success: false,
+        message: error.message,
+      });
+    }
+  }
+
+  async updateMissingCancelReasons(req, res) {
+    try {
+      // List of predefined cancellation reasons
+      const cancelReasons = [
+        "Khách hàng yêu cầu hủy hợp đồng",
+        "Thông tin hợp đồng không chính xác",
+        "Điều khoản không phù hợp",
+        "Thay đổi nội dung hợp đồng",
+        "Vấn đề về tài chính",
+        "Không đạt được thỏa thuận chung",
+        "Thay đổi kế hoạch kinh doanh",
+        "Yêu cầu điều chỉnh giá",
+        "Vấn đề về pháp lý",
+        "Lý do khác",
+      ];
+
+      // Find all cancelled contracts without a reason
+      const contractsWithoutReason = await contractRepo.find({
+        where: {
+          status: "cancelled",
+          cancelReason: IsNull(),
+        },
+      });
+
+      if (contractsWithoutReason.length === 0) {
+        return res.status(200).json({
+          success: true,
+          message: "No cancelled contracts without reasons found",
+          updatedCount: 0,
+        });
+      }
+
+      // Update each contract with a random reason
+      const updatePromises = contractsWithoutReason.map((contract) => {
+        const randomReason =
+          cancelReasons[Math.floor(Math.random() * cancelReasons.length)];
+        return contractRepo.update(contract.id, {
+          cancelReason: randomReason,
+        });
+      });
+
+      await Promise.all(updatePromises);
+
+      return res.status(200).json({
+        success: true,
+        message: "Successfully updated missing cancellation reasons",
+        updatedCount: contractsWithoutReason.length,
+        updatedContracts: contractsWithoutReason.map((contract) => ({
+          contractId: contract.id,
+          contractNumber: contract.contractNumber,
+        })),
       });
     } catch (error) {
       return res.status(500).json({

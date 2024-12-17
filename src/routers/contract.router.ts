@@ -72,5 +72,10 @@ ContractRouter.post("/send-otp", contractController.sendOTP);
 ContractRouter.post("/verify-otp", contractController.verifyOTP);
 ContractRouter.post("/add-feedback", contractController.addFeedback);
 ContractRouter.post("/get-feedback", contractController.getFeedback);
+ContractRouter.post("/update-status", contractController.updateContractStatus);
+ContractRouter.post(
+  "/update-missing-cancel-reasons",
+  contractController.updateMissingCancelReasons
+);
 
 export default ContractRouter;
