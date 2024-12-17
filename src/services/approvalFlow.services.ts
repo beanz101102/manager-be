@@ -90,7 +90,6 @@ class ApprovalFlowServices {
   static async listApprovalFlow(searchName?: string, userId?: number) {
     const whereCondition: any = {
       status: Not("deleted"),
-      usageType: "multiple",
     };
 
     if (searchName) {
@@ -100,6 +99,8 @@ class ApprovalFlowServices {
     if (userId) {
       whereCondition.createdById = userId;
     }
+
+    whereCondition.usageType = "multiple";
 
     const templates = await templateRepo.find({
       where: whereCondition,
