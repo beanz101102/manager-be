@@ -941,7 +941,7 @@ class contractService {
   static async getContractStatistics(userId?: number) {
     let queryBuilder = contractRepo
       .createQueryBuilder("contract")
-      .leftJoin("contract.createdById", "creator")
+      .leftJoin("contract.createdBy", "creator")
       .select("contract.status", "status")
       .addSelect("COUNT(DISTINCT contract.id)", "count");
 
@@ -950,7 +950,7 @@ class contractService {
     }
 
     const stats = await queryBuilder.groupBy("contract.status").getRawMany();
-
+    console.log('stats',stats);
     const result = {
       draft: 0,
       pending_approval: 0,
