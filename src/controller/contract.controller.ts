@@ -8,6 +8,7 @@ import { Redis } from "ioredis";
 import EmailService from "../services/email.service";
 import NotificationService from "../services/notification.services";
 import ContractNotificationService from "../services/contract-notification.service";
+import { IsNull } from "typeorm";
 const path = require("path");
 
 let approvalFlowRepo = dataSource.getRepository(ApprovalFlow);
@@ -955,6 +956,66 @@ class contractController {
           contractId,
           newStatus: status,
         },
+      });
+    } catch (error) {
+      return res.status(500).json({
+        success: false,
+        message: error.message,
+      });
+    }
+  }
+
+  async updateMissingCancelReasons(req, res) {
+    try {
+      // List of predefined cancellation reasons
+      const cancelReasons = [
+        "Khách hàng yêu cầu hủy hợp đồng",
+        "Thông tin hợp đồng không chính xác",
+        "Điều khoản không phù hợp",
+        "Thay đổi nội dung hợp đồng",
+        "Vấn đề về tài chính",
+        "Không đạt được thỏa thuận chung",
+        "Thay đổi kế hoạch kinh doanh",
+        "Yêu cầu điều chỉnh giá",
+        "Vấn đề về pháp lý",
+        "Lý do khác",
+      ];
+
+      // Find all cancelled contracts without a reason
+      const contractsWithoutReason = await contractRepo.find({
+        where: {
+          status: "cancelled",
+          cancelReason: IsNull(),
+        },
+      });
+
+      if (contractsWithoutReason.length === 0) {
+        return res.status(200).json({
+          success: true,
+          message: "No cancelled contracts without reasons found",
+          updatedCount: 0,
+        });
+      }
+
+      // Update each contract with a random reason
+      const updatePromises = contractsWithoutReason.map((contract) => {
+        const randomReason =
+          cancelReasons[Math.floor(Math.random() * cancelReasons.length)];
+        return contractRepo.update(contract.id, {
+          cancelReason: randomReason,
+        });
+      });
+
+      await Promise.all(updatePromises);
+
+      return res.status(200).json({
+        success: true,
+        message: "Successfully updated missing cancellation reasons",
+        updatedCount: contractsWithoutReason.length,
+        updatedContracts: contractsWithoutReason.map((contract) => ({
+          contractId: contract.id,
+          contractNumber: contract.contractNumber,
+        })),
       });
     } catch (error) {
       return res.status(500).json({
