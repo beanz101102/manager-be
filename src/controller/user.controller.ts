@@ -67,6 +67,7 @@ class UserController {
       let department = req.body.department;
       let position = req.body.position;
       let role = req.body.role;
+      let email = req.body.email;
       const user = await UserServices.updateUser(
         userId,
         code,
@@ -81,7 +82,8 @@ class UserController {
         phoneNumber,
         department,
         position,
-        role
+        role,
+        email
       );
       res.status(200).json(user);
     } catch (e) {
