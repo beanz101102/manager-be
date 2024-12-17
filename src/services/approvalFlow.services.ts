@@ -90,6 +90,7 @@ class ApprovalFlowServices {
   static async listApprovalFlow(searchName?: string, userId?: number) {
     const whereCondition: any = {
       status: Not("deleted"),
+      usageType: "multiple",
     };
 
     if (searchName) {
