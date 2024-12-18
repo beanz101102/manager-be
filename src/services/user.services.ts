@@ -99,7 +99,8 @@ class UserServices {
     department: Department,
     position,
     role,
-    email
+    email,
+    username
   ): Promise<void> {
     const user = await userRepo.findOneBy({ id: userId });
     user.code = code;
@@ -116,6 +117,7 @@ class UserServices {
     user.position = position;
     user.role = role;
     user.email = email;
+    user.username = username;
     await userRepo.save(user);
   }
   static async getUserByUserName(username: string) {
